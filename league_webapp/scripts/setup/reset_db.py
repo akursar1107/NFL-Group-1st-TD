@@ -43,7 +43,6 @@ def reset_database():
         print(f"   - Games table: empty")
         print(f"   - Picks table: empty")
         print(f"   - Bankroll history table: empty")
-        print(f"\nNext step: Run 'python import_csv.py' to import historical picks")
 
 if __name__ == '__main__':
     reset_database()
