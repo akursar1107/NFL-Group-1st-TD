@@ -811,9 +811,9 @@ def best_bets_scanner(season=None):
         player_stats = get_player_season_stats(schedule_df, first_td_map, last_n_games=5)
         defense_rankings = calculate_defense_rankings(schedule_df, first_td_map, roster_df)
         funnel_defenses = identify_funnel_defenses(defense_rankings)
-        rz_stats = get_red_zone_stats(pbp_df, roster_df)
-        od_stats = get_opening_drive_stats(pbp_df, roster_df)
-        team_rz_splits = get_team_red_zone_splits(pbp_df)
+        rz_stats = get_red_zone_stats(pbp_df, roster_df) or {}
+        od_stats = get_opening_drive_stats(pbp_df, roster_df) or {}
+        team_rz_splits = get_team_red_zone_splits(pbp_df) or {}
         
         # Get odds API event mappings
         print("Fetching odds event IDs...")
