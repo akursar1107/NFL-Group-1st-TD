@@ -1,5 +1,9 @@
 README.md
+__init__.py
+config.py
+data.py
 setup.py
+stats.py
 ./__init__.py
 ./config.py
 ./data.py
