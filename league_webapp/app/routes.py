@@ -897,7 +897,8 @@ def best_bets_scanner(season=None):
                             def_rank = defense_rankings[home_team][position]  # rank is the value, not a dict
                         
                         # Funnel defense check
-                        funnel_type = funnel_defenses.get(home_team, {}).get('type', '')
+                        funnel_info = funnel_defenses.get(home_team) or {}
+                        funnel_type = funnel_info.get('type', '')
                         
                         # Red zone and opening drive stats
                         rz_rate = rz_stats.get(player, {}).get('rate', 0)
