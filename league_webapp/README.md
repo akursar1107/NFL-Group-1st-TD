@@ -1,67 +1,156 @@
 # NFL First TD League Web App
 
-A Flask-based web application for managing an NFL First Touchdown betting league.
+A Flask-based web application for managing an NFL First Touchdown betting league with bankroll tracking, pick management, and automated grading.
 
-## Setup
+## Features
 
-1. **Create virtual environment**:
+- **User Management**: Track multiple league members with individual bankrolls
+- **Weekly Pick Submission**: Select first TD scorer picks with real-time odds
+- **Automated Grading**: Score picks against actual game results
+- **Bankroll Tracking**: Monitor winnings/losses over the season
+- **NFL Data Integration**: Uses shared `nfl_core` package for statistics and odds
+
+## Prerequisites
+
+- Python 3.10 or higher
+- Virtual environment (recommended)
+- API key from [The Odds API](https://the-odds-api.com/) (optional, for live odds)
+
+## Installation
+
+1. **Navigate to main directory**:
    ```bash
+   cd main
+   ```
+
+2. **Create and activate virtual environment** (if not already done):
+   ```powershell
+   # Windows PowerShell
    python -m venv venv
-   venv\Scripts\activate  # Windows
+   .\venv\Scripts\Activate.ps1
    ```
-
-2. **Install dependencies**:
    ```bash
-   pip install -r requirements.txt
+   # Mac/Linux
+   python -m venv venv
+   source venv/bin/activate
    ```
 
-3. **Set environment variables** (create `.env` file):
+3. **Install the shared nfl_core package**:
+   ```bash
+   pip install -e nfl_core
+   ```
+
+4. **Install webapp dependencies**:
+   ```bash
+   pip install -r league_webapp/requirements.txt
+   ```
+
+5. **Configure environment variables**:
+   Create a `.env` file in the `league_webapp` directory:
    ```
    SECRET_KEY=your-secret-key-here
    ODDS_API_KEY=your-odds-api-key-here
    ```
 
-4. **Initialize database**:
+6. **Initialize database**:
    ```bash
-   python init_db.py
+   cd league_webapp
+   python -c "from app import create_app, db; app = create_app(); app.app_context().push(); db.create_all()"
    ```
 
-5. **Run the application**:
+## Usage
+
+1. **Start the application**:
    ```bash
+   cd league_webapp
    python run.py
    ```
 
-6. **Access the app**: Open browser to `http://localhost:5000`
+2. **Access the web interface**:
+   Open your browser to `http://localhost:5000`
+
+3. **Initial Setup**:
+   - Add users through the admin interface
+   - Set starting bankrolls for each user
+   - Import game schedule for the current week
 
 ## Project Structure
 
 ```
 league_webapp/
 ├── app/
-│   ├── __init__.py          # App factory
-│   ├── config.py            # Configuration
-│   ├── models.py            # Database models
-│   ├── routes.py            # Web routes
-│   ├── templates/           # HTML templates
-│   ├── static/              # CSS, JS, images
-│   └── nfl_utils/           # NFL data utilities
+│   ├── __init__.py          # Flask app factory
+│   ├── models.py            # Database models (User, Game, Pick, Bankroll)
+│   ├── routes.py            # Web routes and views
+│   ├── data_loader.py       # NFL data loading utilities
+│   ├── templates/           # Jinja2 HTML templates
+│   └── static/              # CSS, JS, images
+├── scripts/
+│   └── setup/               # Database setup scripts
 ├── instance/                # SQLite database (auto-created)
-├── init_db.py              # Database initialization
-├── run.py                  # Application entry point
-└── requirements.txt        # Dependencies
+├── auto_grade.py            # Automated weekly grading
+├── grade_week.py            # Manual grading utility
+├── run.py                   # Application entry point
+└── requirements.txt         # Python dependencies
 ```
 
 ## Database Schema
 
-- **users**: League participants (username, email, display_name)
-- **games**: NFL games (game_id, week, teams, results)
-- **picks**: User selections (player, odds, result, payout)
-- **bankroll_history**: Running totals by week
+- **users**: League participants (username, email, display_name, starting_bankroll)
+- **games**: NFL games (game_id, week, home/away teams, kickoff, results)
+- **picks**: User selections (user, game, player, odds, result, payout)
+- **bankroll_history**: Weekly bankroll snapshots
 
-## Next Steps
+## Grading Workflow
 
-- [ ] Copy NFL utilities from CLI tool (`stats.py`, `odds.py`, `data.py`)
-- [ ] Create CSV import script for historical data
-- [ ] Add auto-grading functionality
-- [ ] Build pick submission forms
-- [ ] Add standings calculations
+### Automated Grading
+```bash
+python auto_grade.py --week 10
+```
+
+### Manual Grading
+```bash
+python grade_week.py --week 10
+```
+
+The grading process:
+1. Loads game results from NFL play-by-play data
+2. Identifies first TD scorers for each game
+3. Updates pick results (win/loss/push)
+4. Calculates payouts based on American odds
+5. Updates user bankrolls
+
+## Key Features
+
+### Pick Submission
+- Browse upcoming games for the week
+- View player statistics and trends
+- See current odds from multiple sportsbooks
+- Submit picks before game kickoff
+
+### League Management
+- View all user picks for transparency
+- Track weekly performance
+- Monitor overall standings
+- Export data for analysis
+
+### Data Integration
+Uses the shared `nfl_core` package for:
+- NFL play-by-play data via nflreadpy
+- First TD scorer statistics
+- Red zone and opening drive analysis
+- Defense rankings and funnel identification
+
+## Data Caching
+
+- Play-by-play data cached in `main/cache/` as Parquet files
+- Odds cached for 30 minutes to reduce API calls
+- Database stored in `instance/league.db`
+
+## Tips for League Admins
+
+- Run grading Monday/Tuesday after all games complete
+- Verify results before finalizing (handles stat corrections)
+- Set pick deadlines to game kickoff times
+- Review bankroll history for accuracy
+- Back up the database regularly
