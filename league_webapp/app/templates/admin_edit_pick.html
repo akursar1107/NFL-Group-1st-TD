@@ -10,7 +10,7 @@
     <nav class="navbar navbar-dark bg-dark">
         <div class="container">
             <a class="navbar-brand mb-0 h1" href="/">🏈 NFL First TD League</a>
-            <a class="btn btn-outline-light btn-sm" href="{{ url_for('main.week_detail', week_num=pick.game.week, season=pick.game.season) }}">
+            <a class="btn btn-outline-light btn-sm" href="{{ url_for('main.week_view', week_num=pick.game.week, season=pick.game.season) }}">
                 Back to Week {{ pick.game.week }}
             </a>
         </div>
@@ -90,7 +90,7 @@
 
                             <!-- Buttons -->
                             <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                                <a href="{{ url_for('main.week_detail', week_num=pick.game.week, season=pick.game.season) }}" 
+                                <a href="{{ url_for('main.week_view', week_num=pick.game.week, season=pick.game.season) }}" 
                                    class="btn btn-secondary">
                                     Cancel
                                 </a>

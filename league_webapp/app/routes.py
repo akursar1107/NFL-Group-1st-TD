@@ -693,7 +693,7 @@ def edit_pick(pick_id):
             flash(f'✓ Updated {pick_type} pick: {pick.user.username} - {player_name} ({odds_display})', 'success')
             
             # Redirect back to the week view
-            return redirect(url_for('main.week_detail', week_num=pick.game.week, season=pick.game.season))
+            return redirect(url_for('main.week_view', week_num=pick.game.week, season=pick.game.season))
             
         except Exception as e:
             db.session.rollback()
@@ -742,7 +742,7 @@ def delete_pick(pick_id):
         db.session.rollback()
         flash(f'Error deleting pick: {str(e)}', 'danger')
     
-    return redirect(url_for('main.week_detail', week_num=week_num, season=season))
+    return redirect(url_for('main.week_view', week_num=week_num, season=season))
 
 @bp.route('/api/health')
 def health():
