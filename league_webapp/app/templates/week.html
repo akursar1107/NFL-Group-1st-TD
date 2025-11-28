@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week {{ week }} ({{ season }}) - NFL First TD League</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .winning-pick {
+            background-color: #d4edda !important;
+            font-weight: bold;
+        }
+        .losing-pick {
+            background-color: #f8d7da !important;
+        }
+        .pending-pick {
+            background-color: #fff3cd !important;
+        }
+        .game-card {
+            margin-bottom: 2rem;
+        }
+        .week-nav {
+            margin-bottom: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/season/{{ season|default(2025, true) }}">🏈 NFL First TD League</a>
+            <span class="navbar-text text-white">{{ season|default(2025, true) }} Season - Week {{ week }}</span>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Week Navigation -->
+        <div class="week-nav">
+            <div class="btn-group" role="group">
+                <a href="/season/{{ season|default(2025, true) }}" class="btn btn-outline-secondary">← Standings</a>
+                {% if week > 1 %}
+                <a href="/season/{{ season|default(2025, true) }}/week/{{ week - 1 }}" class="btn btn-outline-primary">← Week {{ week - 1 }}</a>
+                {% endif %}
+                
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown">
+                        Week {{ week }}
+                    </button>
+                    <ul class="dropdown-menu">
+                        {% for w in available_weeks %}
+                        <li><a class="dropdown-item {% if w == week %}active{% endif %}" href="/season/{{ season|default(2025, true) }}/week/{{ w }}">Week {{ w }}</a></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                
+                {% if week < 18 %}
+                <a href="/season/{{ season|default(2025, true) }}/week/{{ week + 1 }}" class="btn btn-outline-primary">Week {{ week + 1 }} →</a>
+                {% endif %}
+            </div>
+            
+            <!-- Admin Grading Button -->
+            <form method="POST" action="/admin/grade/{{ week }}" style="display: inline;">
+                <input type="hidden" name="season" value="{{ season|default(2025, true) }}">
+                <button type="submit" class="btn btn-warning" onclick="return confirm('Grade all picks for Week {{ week }}? This will update results based on actual NFL data.')">
+                    🔄 Grade Week {{ week }}
+                </button>
+            </form>
+        </div>
+
+        <h2>Week {{ week }} Games</h2>
+
+        {% if message %}
+        <div class="alert alert-info">{{ message }}</div>
+        {% endif %}
+
+        {% for game_data in games %}
+        <div class="card game-card">
+            <div class="card-header {% if game_data.is_final %}bg-secondary text-white{% else %}bg-light{% endif %}">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h5 class="mb-0">{{ game_data.matchup }}</h5>
+                    </div>
+                    <div class="col-md-4">
+                        <small>{{ game_data.date }} {{ game_data.time }}</small>
+                    </div>
+                    <div class="col-md-2 text-end">
+                        {% if game_data.is_final %}
+                        <span class="badge bg-success">FINAL</span>
+                        {% else %}
+                        <span class="badge bg-warning text-dark">UPCOMING</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if game_data.is_final and game_data.actual_scorer %}
+                <div class="row mt-2">
+                    <div class="col">
+                        <strong>First TD:</strong> {{ game_data.actual_scorer }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if game_data.picks %}
+                <table class="table table-sm table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Player</th>
+                            <th>Pick</th>
+                            <th>Position</th>
+                            <th>Odds</th>
+                            <th>Stake</th>
+                            <th>Result</th>
+                            <th>Payout</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pick in game_data.picks %}
+                        <tr class="{% if pick.result == 'W' %}winning-pick{% elif pick.result == 'L' %}losing-pick{% elif pick.result == 'Pending' %}pending-pick{% endif %}">
+                            <td><strong>{{ pick.user.display_name or pick.user.username }}</strong></td>
+                            <td>{{ pick.player_name }}</td>
+                            <td>{{ pick.player_position or '-' }}</td>
+                            <td>{{ "%+d"|format(pick.odds) }}</td>
+                            <td>${{ "%.2f"|format(pick.stake) }}</td>
+                            <td>
+                                {% if pick.result == 'W' %}
+                                <span class="badge bg-success">WIN</span>
+                                {% elif pick.result == 'L' %}
+                                <span class="badge bg-danger">LOSS</span>
+                                {% else %}
+                                <span class="badge bg-secondary">PENDING</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if pick.payout %}
+                                <strong class="{% if pick.payout > 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ${{ "%.2f"|format(pick.payout) }}
+                                </strong>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{{ url_for('main.edit_pick', pick_id=pick.id) }}" 
+                                       class="btn btn-outline-warning btn-sm" 
+                                       title="Edit pick">
+                                        ✏️
+                                    </a>
+                                    <form method="POST" action="{{ url_for('main.delete_pick', pick_id=pick.id) }}" 
+                                          style="display: inline;"
+                                          onsubmit="return confirm('Delete this pick for {{ pick.user.username }} - {{ pick.player_name }}?');">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete pick">
+                                            🗑️
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted mb-0">No picks for this game</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+
+        {% if not games %}
+        <div class="alert alert-warning">
+            No games found for Week {{ week }}. Try selecting a different week.
+        </div>
+        {% endif %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

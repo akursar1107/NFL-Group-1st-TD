@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ user.display_name or user.username }} ({{ season }}) - Picks</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand mb-0 h1" href="/season/{{ season }}">🏈 NFL First TD League</a>
+            <a href="/season/{{ season }}" class="btn btn-outline-light">← Back to Standings</a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- User Header -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="card-title">{{ user.display_name or user.username }} - {{ season }} Season</h2>
+                
+                <!-- Stats Summary -->
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <h5>First TD Scorer</h5>
+                        <div class="d-flex align-items-center gap-3 mb-2">
+                            <span class="badge bg-success fs-6">{{ stats.ftd_wins }}W</span>
+                            <span class="badge bg-danger fs-6">{{ stats.ftd_losses }}L</span>
+                            {% if stats.ftd_pending > 0 %}
+                            <span class="badge bg-secondary fs-6">{{ stats.ftd_pending }}P</span>
+                            {% endif %}
+                            <span class="text-muted">{{ "%.1f"|format(stats.ftd_win_rate) }}% win rate</span>
+                        </div>
+                        <h4 class="{% if stats.ftd_bankroll > 0 %}text-success{% elif stats.ftd_bankroll < 0 %}text-danger{% endif %}">
+                            ${{ "%.2f"|format(stats.ftd_bankroll) }}
+                        </h4>
+                    </div>
+                    
+                    {% if stats.atts_wins + stats.atts_losses + stats.atts_pending > 0 %}
+                    <div class="col-md-6">
+                        <h5>Anytime TD Scorer</h5>
+                        <div class="d-flex align-items-center gap-3 mb-2">
+                            <span class="badge bg-success fs-6">{{ stats.atts_wins }}W</span>
+                            <span class="badge bg-danger fs-6">{{ stats.atts_losses }}L</span>
+                            {% if stats.atts_pending > 0 %}
+                            <span class="badge bg-secondary fs-6">{{ stats.atts_pending }}P</span>
+                            {% endif %}
+                            <span class="text-muted">{{ "%.1f"|format(stats.atts_win_rate) }}% win rate</span>
+                        </div>
+                        <h4 class="{% if stats.atts_bankroll > 0 %}text-success{% elif stats.atts_bankroll < 0 %}text-danger{% endif %}">
+                            ${{ "%.2f"|format(stats.atts_bankroll) }}
+                        </h4>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Picks by Week -->
+        {% if picks_by_week %}
+        {% for week in picks_by_week.keys()|sort %}
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Week {{ week }}</h5>
+                <a href="/season/{{ season }}/week/{{ week }}" class="btn btn-sm btn-outline-primary">View Full Week →</a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Game</th>
+                                <th>Type</th>
+                                <th>Player</th>
+                                <th>Odds</th>
+                                <th>Stake</th>
+                                <th>Result</th>
+                                <th>Payout</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for pick in picks_by_week[week] %}
+                            <tr class="{% if pick.result == 'W' %}table-success{% elif pick.result == 'L' %}table-danger{% elif pick.result == 'Pending' %}table-warning{% endif %}">
+                                <td>
+                                    <small>{{ pick.game.away_team }} @ {{ pick.game.home_team }}</small>
+                                    {% if pick.game.game_date %}
+                                    <br><small class="text-muted">{{ pick.game.game_date.strftime('%a %m/%d') }}</small>
+                                    {% endif %}
+                                </td>
+                                <td><span class="badge bg-primary">{{ pick.pick_type }}</span></td>
+                                <td><strong>{{ pick.player_name }}</strong></td>
+                                <td>{{ "%+d"|format(pick.american_odds) if pick.american_odds else '-' }}</td>
+                                <td>${{ "%.2f"|format(pick.stake) }}</td>
+                                <td>
+                                    {% if pick.result == 'W' %}
+                                    <span class="badge bg-success">Win</span>
+                                    {% elif pick.result == 'L' %}
+                                    <span class="badge bg-danger">Loss</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Pending</span>
+                                    {% endif %}
+                                    {% if pick.game.actual_first_td_player %}
+                                    <br><small class="text-muted">Actual: {{ pick.game.actual_first_td_player }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if pick.payout is not none %}
+                                    <strong class="{% if pick.payout > 0 %}text-success{% else %}text-danger{% endif %}">
+                                        ${{ "%.2f"|format(pick.payout) }}
+                                    </strong>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="alert alert-info">
+            <p class="mb-0">No picks found for this user.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

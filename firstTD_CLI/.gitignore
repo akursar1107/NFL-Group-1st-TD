@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.vscode/
+.env
+cache/
+instance/
+venv/
+*.log
+.DS_Store
+NFL TD Scorers/
+getOdds.py
+archive/
+getOdds_old.py
+OLD_getOdds.py

@@ -1,0 +1,11 @@
+README.md
+setup.py
+./__init__.py
+./config.py
+./data.py
+./stats.py
+nfl_core.egg-info/PKG-INFO
+nfl_core.egg-info/SOURCES.txt
+nfl_core.egg-info/dependency_links.txt
+nfl_core.egg-info/requires.txt
+nfl_core.egg-info/top_level.txt

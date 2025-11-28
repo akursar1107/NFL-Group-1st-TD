@@ -1,0 +1,13 @@
+Metadata-Version: 2.4
+Name: nfl-core
+Version: 1.0.0
+Summary: Shared NFL statistics and data utilities
+Author: Your Name
+Requires-Python: >=3.10
+Requires-Dist: nflreadpy
+Requires-Dist: polars
+Requires-Dist: requests
+Dynamic: author
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
