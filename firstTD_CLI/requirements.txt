@@ -1,4 +1,4 @@
-polars
-pytz
-nflreadpy
-requests
+polars>=0.20.0
+pytz>=2024.1
+nflreadpy>=0.3.0
+requests>=2.31.0
