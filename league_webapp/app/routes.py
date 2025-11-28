@@ -810,7 +810,7 @@ def best_bets_scanner(season=None):
         first_td_map = get_first_td_scorers(pbp_df, target_game_ids=None, roster_df=roster_df)
         player_stats = get_player_season_stats(schedule_df, first_td_map, last_n_games=5)
         defense_rankings = calculate_defense_rankings(schedule_df, first_td_map, roster_df)
-        funnel_defenses = identify_funnel_defenses(defense_rankings)
+        funnel_defenses = identify_funnel_defenses(defense_rankings) or {}
         rz_stats = get_red_zone_stats(pbp_df, roster_df) or {}
         od_stats = get_opening_drive_stats(pbp_df, roster_df) or {}
         team_rz_splits = get_team_red_zone_splits(pbp_df) or {}
