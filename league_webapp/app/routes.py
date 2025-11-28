@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, jsonify, redirect, url_for, flash,
 from .models import User, Game, Pick, MatchDecision
 from . import db, cache
 from sqlalchemy import func, case
+from sqlalchemy.orm import joinedload
 from nfl_core.stats import (
     get_first_td_scorers, 
     get_player_season_stats, 
@@ -25,6 +26,7 @@ import polars as pl
 bp = Blueprint('main', __name__)
 
 # Shared helper function for loading NFL statistics
+@cache.memoize(timeout=300)  # Cache for 5 minutes
 def get_nfl_stats_data(season=2025, use_cache=True):
     """
     Load NFL data and calculate all statistics. Returns a dictionary with:
@@ -153,20 +155,23 @@ def week_view(week_num, season=None):
     if season is None:
         season = 2025
     
-    # Get all games for this week and season
-    games = Game.query.filter_by(week=week_num, season=season).order_by(Game.game_date, Game.game_time).all()
+    # Get all games for this week and season with picks eagerly loaded (avoid N+1 queries)
+    games = Game.query.options(joinedload(Game.picks).joinedload(Pick.user)).filter_by(
+        week=week_num, season=season
+    ).order_by(Game.game_date, Game.game_time).all()
     
     if not games:
         return render_template('week.html', week=week_num, season=season, games=[], message="No games found for this week")
     
-    # Build game data with picks
+    # Build game data with picks (now using eager-loaded data)
     games_data = []
     for game in games:
-        picks = Pick.query.filter_by(game_id=game.id, pick_type='FTD').all()
+        # Filter picks for FTD type (already loaded)
+        ftd_picks = [p for p in game.picks if p.pick_type == 'FTD']
         
         game_info = {
             'game': game,
-            'picks': picks,
+            'picks': ftd_picks,
             'matchup': f"{game.away_team} @ {game.home_team}",
             'date': game.game_date.strftime('%a %m/%d') if game.game_date else 'TBD',
             'time': game.game_time.strftime('%I:%M %p') if game.game_time else '',
@@ -226,120 +231,44 @@ def grade_current_week():
     season = 2025
     current_week = get_current_nfl_week(season)
     
-    # Start with the previous week (current week - 1) as the default week to grade
-    week_to_grade = current_week - 1
-    
-    # But check if there are pending picks for that week
-    pending_count = Pick.query.join(Game).filter(
-        Game.week == week_to_grade,
+    # Optimized: Find most recent week with pending picks in single query
+    week_to_grade_result = db.session.query(Game.week).join(Pick).filter(
         Game.season == season,
         Pick.result == 'Pending'
-    ).count()
+    ).order_by(Game.week.desc()).first()
     
-    # If no pending picks for previous week, find the most recent week with pending picks
-    if pending_count == 0:
-        # Get all weeks with pending picks, ordered descending
-        weeks_with_pending = db.session.query(Game.week).join(Pick).filter(
-            Game.season == season,
-            Pick.result == 'Pending'
-        ).distinct().order_by(Game.week.desc()).all()
-        
-        if not weeks_with_pending:
-            flash('No pending picks to grade for this season', 'warning')
-            return redirect(url_for('main.index'))
-        
-        week_to_grade = weeks_with_pending[0][0]
+    if not week_to_grade_result:
+        flash('No pending picks to grade for this season', 'warning')
+        return redirect(url_for('main.index'))
+    
+    week_to_grade = week_to_grade_result[0]
     
     if week_to_grade < 1:
         flash('No week available to grade yet', 'warning')
         return redirect(url_for('main.index'))
     
     try:
-        # Load data - use fresh data for current grading
-        schedule_df, pbp_df, roster_df = load_data_with_cache_web(season, use_cache=False)
+        # Use grading service (same as grade_week_route)
+        grading_service = GradingService()
+        result = grading_service.grade_week(week_to_grade, season, use_cache=False)
         
-        # Get all games for the week to grade
-        games = Game.query.filter_by(week=week_to_grade, season=season).all()
-        
-        if not games:
-            flash(f'No games found for Week {week_to_grade}', 'warning')
+        if not result['success']:
+            flash(result['error'], 'warning')
             return redirect(url_for('main.index'))
         
-        game_ids = [g.game_id for g in games]
+        # Build flash message
+        total = result['total_graded']
+        won = result['total_won']
+        lost = result['total_lost']
+        review = result['total_needs_review']
         
-        # Get first TD scorers for these games
-        first_td_map = get_first_td_scorers(pbp_df, target_game_ids=game_ids, roster_df=roster_df)
-        
-        # Get all ATTS TD scorers for these games
-        all_td_scorers = get_all_td_scorers(pbp_df, target_game_ids=game_ids, roster_df=roster_df)
-        
-        if not first_td_map and not all_td_scorers:
-            flash(f'No TD data available for Week {week_to_grade}. Games may not be complete yet.', 'warning')
-            return redirect(url_for('main.index'))
-        
-        total_picks_graded = 0
-        total_picks_won = 0
-        total_picks_lost = 0
-        
-        for game in games:
-            # Grade FTD picks
-            if game.game_id in first_td_map:
-                td_data = first_td_map[game.game_id]
-                actual_player = td_data.get('player', '').strip()
-                
-                pending_ftd_picks = Pick.query.filter_by(
-                    game_id=game.id,
-                    pick_type='FTD',
-                    result='Pending'
-                ).all()
-                
-                for pick in pending_ftd_picks:
-                    if not actual_player or actual_player.lower() == 'none':
-                        pick.result = 'L'
-                        pick.payout = -pick.stake
-                        total_picks_lost += 1
-                    elif actual_player.lower() == pick.player_name.lower():
-                        pick.result = 'W'
-                        pick.payout = (pick.stake * pick.odds / 100) if pick.odds > 0 else (pick.stake * 100 / abs(pick.odds))
-                        total_picks_won += 1
-                    else:
-                        pick.result = 'L'
-                        pick.payout = -pick.stake
-                        total_picks_lost += 1
-                    total_picks_graded += 1
-            
-            # Grade ATTS picks
-            if game.game_id in all_td_scorers:
-                td_scorers = all_td_scorers[game.game_id]
-                td_scorer_names = [s['player'].lower() for s in td_scorers]
-                
-                pending_atts_picks = Pick.query.filter_by(
-                    game_id=game.id,
-                    pick_type='ATTS',
-                    result='Pending'
-                ).all()
-                
-                for pick in pending_atts_picks:
-                    if pick.player_name.lower() in td_scorer_names:
-                        pick.result = 'W'
-                        pick.payout = (pick.stake * pick.odds / 100) if pick.odds > 0 else (pick.stake * 100 / abs(pick.odds))
-                        total_picks_won += 1
-                    else:
-                        pick.result = 'L'
-                        pick.payout = -pick.stake
-                        total_picks_lost += 1
-                    total_picks_graded += 1
-        
-        db.session.commit()
-        
-        if total_picks_graded > 0:
-            flash(f'✓ Week {week_to_grade} graded: {total_picks_graded} picks ({total_picks_won}W-{total_picks_lost}L)', 'success')
+        if review > 0:
+            flash(f'Graded Week {week_to_grade}: {total} picks, {won} wins, {lost} losses, {review} need review', 'warning')
         else:
-            flash(f'No picks graded for Week {week_to_grade}. Games may not be complete yet.', 'warning')
+            flash(f'Graded Week {week_to_grade}: {total} picks, {won} wins, {lost} losses', 'success')
         
     except Exception as e:
-        db.session.rollback()
-        flash(f'Error grading week: {str(e)}', 'danger')
+        flash(f'Error grading: {str(e)}', 'danger')
     
     return redirect(url_for('main.index'))
 
@@ -1314,8 +1243,11 @@ def all_picks_admin(season=None):
     available_seasons = db.session.query(Game.season).distinct().order_by(Game.season.desc()).all()
     available_seasons = [s[0] for s in available_seasons]
     
-    # Get all picks for the season with related data
-    picks = Pick.query.join(Game).join(User).filter(
+    # Get all picks for the season with related data eagerly loaded (avoid N+1 queries)
+    picks = Pick.query.options(
+        joinedload(Pick.game),
+        joinedload(Pick.user)
+    ).join(Game).join(User).filter(
         Game.season == season
     ).order_by(
         Game.week.desc(),
