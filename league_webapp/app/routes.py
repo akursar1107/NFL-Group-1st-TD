@@ -1508,12 +1508,7 @@ def bulk_revert_approved():
     success, count, message = review_service.bulk_revert_approved()
     flash(message, 'info' if success else 'danger')
     return redirect(url_for('main.match_review'))
-        match.needs_review = False
-        
-        pick = match.pick
-        pick.result = 'W'
-        pick.payout = pick.calculate_payout()
-        pick.graded_at = datetime.utcnow()
+
 @bp.route('/api/health')
 def health():
     """Health check endpoint"""
