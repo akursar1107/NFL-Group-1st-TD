@@ -894,7 +894,7 @@ def best_bets_scanner(season=None):
                         # Get defense matchup info
                         def_rank = None
                         if position and position in defense_rankings.get(home_team, {}):
-                            def_rank = defense_rankings[home_team][position]['rank']
+                            def_rank = defense_rankings[home_team][position]  # rank is the value, not a dict
                         
                         # Funnel defense check
                         funnel_type = funnel_defenses.get(home_team, {}).get('type', '')
