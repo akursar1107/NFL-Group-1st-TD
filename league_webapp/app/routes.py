@@ -116,6 +116,12 @@ def index(season=None):
         ftd = ftd_dict.get(user.id)
         atts = atts_dict.get(user.id)
         
+        total_picks = (ftd.total if ftd else 0) + (atts.total if atts else 0)
+        
+        # Skip users with 0 picks
+        if total_picks == 0:
+            continue
+        
         standings.append({
             'user': user,
             'ftd_wins': ftd.wins if ftd else 0,
@@ -126,7 +132,7 @@ def index(season=None):
             'atts_losses': atts.losses if atts else 0,
             'atts_pending': atts.pending if atts else 0,
             'atts_bankroll': float(atts.bankroll) if atts and atts.bankroll else 0.0,
-            'total_picks': (ftd.total if ftd else 0) + (atts.total if atts else 0)
+            'total_picks': total_picks
         })
     
     # Sort by FTD bankroll (descending)
@@ -738,10 +744,14 @@ def edit_pick(pick_id):
             
             # Look up player position
             schedule_df, pbp_df, roster_df = load_data_with_cache_web(2025, use_cache=True)
-            if roster_df is not None and not roster_df.empty:
-                player_match = roster_df[roster_df['player_display_name'].str.lower() == player_name.lower()]
-                if not player_match.empty:
-                    pick.player_position = player_match.iloc[0]['position']
+            if roster_df is not None and not roster_df.is_empty():
+                player_match = roster_df.filter(pl.col('full_name').str.to_lowercase() == player_name.lower())
+                if not player_match.is_empty():
+                    pick.player_position = player_match[0, 'position']
+            
+            # Recalculate payout if the pick has been graded
+            if pick.result in ('W', 'L', 'Push'):
+                pick.payout = pick.calculate_payout()
             
             db.session.commit()
             
@@ -1338,6 +1348,170 @@ def analysis_page(season=None):
                              team_data=None,
                              defense_data=None,
                              trends_data=None)
+
+@bp.route('/admin/import-data')
+def import_data_page():
+    """Page for importing historical NFL data from nflreadpy (ADMIN ONLY - enforcement TODO)"""
+    # TODO: Add @admin_required decorator when authentication is implemented
+    return render_template('import_data.html')
+
+@bp.route('/api/import-season/<int:season>', methods=['POST'])
+def import_season(season):
+    """
+    API endpoint to import/refresh data for a specific season.
+    Downloads fresh data from nflreadpy and caches it.
+    ADMIN ONLY - enforcement TODO
+    """
+    # TODO: Add @admin_required decorator when authentication is implemented
+    try:
+        from app.data_loader import load_data_with_cache_web
+        
+        # Force fresh download by setting use_cache=False
+        schedule_df, pbp_df, roster_df = load_data_with_cache_web(season, use_cache=False)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully imported {season} season data',
+            'stats': {
+                'games': schedule_df.height,
+                'plays': pbp_df.height,
+                'players': roster_df.height
+            }
+        })
+        
+    except Exception as e:
+        print(f"Error importing season {season}: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@bp.route('/api/team-history/<int:season>/<team>')
+@bp.route('/api/team-history/<int:season>/<team>/<week>')
+def team_history_api(season, team, week='ALL'):
+    """
+    API endpoint for team first TD history.
+    Returns all games for a specific team and season with first TD scorer info.
+    If team is 'ALL', returns all games in the season.
+    If week is provided, filters to that specific week.
+    """
+    try:
+        # Load NFL data for the requested season
+        stats_data = get_nfl_stats_data(season, use_cache=True)
+        schedule_df = stats_data['schedule_df']
+        first_td_map = stats_data['first_td_map']
+        roster_df = stats_data['roster_df']
+        
+        # Handle "ALL" teams vs specific team
+        if team == 'ALL':
+            # Get all games
+            team_games = schedule_df.sort('week')
+        else:
+            # Filter schedule for this team
+            team_games = schedule_df.filter(
+                (pl.col('home_team') == team) | (pl.col('away_team') == team)
+            ).sort('week')
+            
+            if team_games.height == 0:
+                return jsonify({'error': f'No games found for {team} in {season} season'})
+        
+        # Filter by week if specified
+        if week != 'ALL':
+            try:
+                week_num = int(week)
+                team_games = team_games.filter(pl.col('week') == week_num)
+            except ValueError:
+                pass
+        
+        games_list = []
+        total_first_tds = 0
+        
+        for game in team_games.to_dicts():
+            week = game.get('week', '?')
+            home_team = game.get('home_team', '')
+            away_team = game.get('away_team', '')
+            gameday = game.get('gameday', '')
+            gametime = game.get('gametime', '')
+            
+            # Determine if standalone
+            is_standalone = False
+            if gameday:
+                try:
+                    from datetime import datetime as dt_parser
+                    game_date = dt_parser.strptime(str(gameday), '%Y-%m-%d')
+                    day_of_week = game_date.weekday()
+                    
+                    if day_of_week != 6:
+                        is_standalone = True
+                    elif day_of_week == 6:
+                        if gametime and isinstance(gametime, str):
+                            hour = int(gametime.split(':')[0]) if ':' in gametime else 0
+                            if hour >= 20:
+                                is_standalone = True
+                except:
+                    pass
+            
+            # Get first TD scorer for this game
+            game_id = game.get('game_id', '')
+            first_td_scorer = None
+            first_td_team = None
+            position = None
+            
+            if game_id and game_id in first_td_map:
+                scorer_info = first_td_map[game_id]
+                first_td_team = scorer_info['team']
+                first_td_scorer = scorer_info['player']
+                
+                # For specific team filter, only count if they scored
+                if team == 'ALL' or first_td_team == team:
+                    total_first_tds += 1
+                
+                # Get position
+                player_id = scorer_info.get('player_id', '')
+                if player_id:
+                    position = get_player_position(player_id, first_td_scorer, roster_df)
+            
+            # Build game info based on view type
+            if team == 'ALL':
+                games_list.append({
+                    'week': week,
+                    'home_team': home_team,
+                    'away_team': away_team,
+                    'is_standalone': is_standalone,
+                    'first_td_scorer': first_td_scorer,
+                    'first_td_team': first_td_team,
+                    'position': position
+                })
+            else:
+                opponent = away_team if home_team == team else home_team
+                location = 'H' if home_team == team else 'A'
+                # Only include scorer if this team scored
+                scorer = first_td_scorer if first_td_team == team else None
+                pos = position if first_td_team == team else None
+                
+                games_list.append({
+                    'week': week,
+                    'opponent': opponent,
+                    'location': location,
+                    'is_standalone': is_standalone,
+                    'first_td_scorer': scorer,
+                    'position': pos
+                })
+        
+        return jsonify({
+            'team': team,
+            'season': season,
+            'games': games_list,
+            'total_first_tds': total_first_tds
+        })
+        
+    except Exception as e:
+        print(f"Error in team_history_api: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
 
 @bp.route('/api/health')
 def health():

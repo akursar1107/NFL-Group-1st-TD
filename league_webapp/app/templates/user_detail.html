@@ -33,7 +33,7 @@
                             <span class="text-muted">{{ "%.1f"|format(stats.ftd_win_rate) }}% win rate</span>
                         </div>
                         <h4 class="{% if stats.ftd_bankroll > 0 %}text-success{% elif stats.ftd_bankroll < 0 %}text-danger{% endif %}">
-                            ${{ "%.2f"|format(stats.ftd_bankroll) }}
+                            {{ "%.2f"|format(stats.ftd_bankroll) }}u
                         </h4>
                     </div>
                     
@@ -49,7 +49,7 @@
                             <span class="text-muted">{{ "%.1f"|format(stats.atts_win_rate) }}% win rate</span>
                         </div>
                         <h4 class="{% if stats.atts_bankroll > 0 %}text-success{% elif stats.atts_bankroll < 0 %}text-danger{% endif %}">
-                            ${{ "%.2f"|format(stats.atts_bankroll) }}
+                            {{ "%.2f"|format(stats.atts_bankroll) }}u
                         </h4>
                     </div>
                     {% endif %}
@@ -91,7 +91,7 @@
                                 <td><span class="badge bg-primary">{{ pick.pick_type }}</span></td>
                                 <td><strong>{{ pick.player_name }}</strong></td>
                                 <td>{{ "%+d"|format(pick.american_odds) if pick.american_odds else '-' }}</td>
-                                <td>${{ "%.2f"|format(pick.stake) }}</td>
+                                <td>{{ "%.2f"|format(pick.stake) }}u</td>
                                 <td>
                                     {% if pick.result == 'W' %}
                                     <span class="badge bg-success">Win</span>
@@ -107,7 +107,7 @@
                                 <td>
                                     {% if pick.payout is not none %}
                                     <strong class="{% if pick.payout > 0 %}text-success{% else %}text-danger{% endif %}">
-                                        ${{ "%.2f"|format(pick.payout) }}
+                                        {{ "%.2f"|format(pick.payout) }}u
                                     </strong>
                                     {% else %}
                                     <span class="text-muted">-</span>

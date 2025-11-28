@@ -67,7 +67,7 @@ class Pick(db.Model):
     player_name = db.Column(db.String(100), nullable=False)
     player_position = db.Column(db.String(10))  # 'WR', 'RB', 'TE', 'QB'
     odds = db.Column(db.Integer, nullable=False)  # American odds (e.g., 900 for +900)
-    stake = db.Column(db.Float, default=1.0)  # Usually $1
+    stake = db.Column(db.Float, default=1.0)  # In betting units
     
     # Results
     result = db.Column(db.String(10), default='Pending', index=True)  # 'W', 'L', 'Pending', 'Push'

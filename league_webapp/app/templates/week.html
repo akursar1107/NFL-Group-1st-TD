@@ -137,7 +137,7 @@
                             <td>{{ pick.player_name }}</td>
                             <td>{{ pick.player_position or '-' }}</td>
                             <td>{{ "%+d"|format(pick.odds) }}</td>
-                            <td>${{ "%.2f"|format(pick.stake) }}</td>
+                            <td>{{ "%.2f"|format(pick.stake) }}u</td>
                             <td>
                                 {% if pick.result == 'W' %}
                                 <span class="badge bg-success">WIN</span>
@@ -150,7 +150,7 @@
                             <td>
                                 {% if pick.payout %}
                                 <strong class="{% if pick.payout > 0 %}text-success{% else %}text-danger{% endif %}">
-                                    ${{ "%.2f"|format(pick.payout) }}
+                                    {{ "%.2f"|format(pick.payout) }}u
                                 </strong>
                                 {% else %}
                                 -

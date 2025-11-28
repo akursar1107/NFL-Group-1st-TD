@@ -57,6 +57,14 @@ def load_data_with_cache_web(season: int, use_cache: bool = True) -> tuple[pl.Da
         url = f"https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_{season}.parquet"
         r = requests.get(url)
         pbp_df = pl.read_parquet(io.BytesIO(r.content))
+    
+    # Filter PBP to only touchdown plays to reduce memory/storage
+    print(f"Original PBP size: {pbp_df.height:,} plays")
+    pbp_df = pbp_df.filter(
+        (pl.col('touchdown') == 1) | 
+        (pl.col('td_player_name').is_not_null())
+    )
+    print(f"Filtered to TD plays only: {pbp_df.height:,} plays")
 
     # Roster
     try:

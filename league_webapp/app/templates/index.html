@@ -101,7 +101,7 @@
                         </td>
                         <td>
                             <strong class="{% if s.ftd_bankroll > 0 %}text-success{% elif s.ftd_bankroll < 0 %}text-danger{% endif %}">
-                                ${{ "%.2f"|format(s.ftd_bankroll) }}
+                                {{ "%.2f"|format(s.ftd_bankroll) }}u
                             </strong>
                         </td>
                         <td>
@@ -118,7 +118,7 @@
                         <td>
                             {% if s.atts_wins + s.atts_losses + s.atts_pending > 0 %}
                             <strong class="{% if s.atts_bankroll > 0 %}text-success{% elif s.atts_bankroll < 0 %}text-danger{% endif %}">
-                                ${{ "%.2f"|format(s.atts_bankroll) }}
+                                {{ "%.2f"|format(s.atts_bankroll) }}u
                             </strong>
                             {% else %}
                             <span class="text-muted">-</span>
