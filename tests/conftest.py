@@ -47,8 +47,7 @@ def sample_user(app):
         user = User(
             username='testuser',
             email='test@example.com',
-            display_name='Test User',
-            starting_bankroll=1000.0
+            display_name='Test User'
         )
         db.session.add(user)
         db.session.commit()
@@ -64,6 +63,7 @@ def sample_game(app):
     """Create a sample game for testing"""
     from league_webapp.app import db
     from league_webapp.app.models import Game
+    from datetime import date
     
     with app.app_context():
         game = Game(
@@ -72,13 +72,13 @@ def sample_game(app):
             season=2024,
             home_team='DET',
             away_team='KC',
-            kickoff='2024-11-10 13:00:00'
+            game_date=date(2024, 11, 10)
         )
         db.session.add(game)
         db.session.commit()
         
         db.session.refresh(game)
-        game_id = game.game_id
+        game_id = game.id
         
     return game_id
 
@@ -92,9 +92,10 @@ def sample_pick(app, sample_user, sample_game):
         pick = Pick(
             user_id=sample_user,
             game_id=sample_game,
+            pick_type='FTD',
             player_name='Patrick Mahomes',
             odds=300,
-            bet_amount=100.0
+            stake=1.0
         )
         db.session.add(pick)
         db.session.commit()

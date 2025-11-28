@@ -105,10 +105,11 @@ class TestPickModel:
             pick = Pick(
                 user_id=sample_user,
                 game_id=sample_game,
+                pick_type='FTD',
                 player_name='Travis Kelce',
-                player_id='KEL123',
+                player_position='TE',
                 odds=800,
-                bet_amount=50.0
+                stake=50.0
             )
             db.session.add(pick)
             db.session.commit()
@@ -116,7 +117,7 @@ class TestPickModel:
             assert pick.id is not None
             assert pick.player_name == 'Travis Kelce'
             assert pick.odds == 800
-            assert pick.result is None
+            assert pick.result == 'Pending'
     
     def test_pick_payout_calculation_win(self, app, sample_user, sample_game):
         """Test payout calculation for winning pick"""
@@ -127,16 +128,16 @@ class TestPickModel:
             pick = Pick(
                 user_id=sample_user,
                 game_id=sample_game,
+                pick_type='FTD',
                 player_name='Patrick Mahomes',
                 odds=300,
-                bet_amount=100.0,
-                result='win'
+                stake=100.0,
+                result='W'
             )
             
             # Test American odds: +300 on $100 bet = $300 profit
-            if hasattr(pick, 'calculate_payout'):
-                payout = pick.calculate_payout()
-                assert payout == 300.0
+            payout = pick.calculate_payout()
+            assert payout == 300.0
     
     def test_pick_payout_calculation_loss(self, app, sample_user, sample_game):
         """Test payout for losing pick"""
@@ -147,15 +148,15 @@ class TestPickModel:
             pick = Pick(
                 user_id=sample_user,
                 game_id=sample_game,
+                pick_type='FTD',
                 player_name='Patrick Mahomes',
                 odds=300,
-                bet_amount=100.0,
-                result='loss'
+                stake=100.0,
+                result='L'
             )
             
-            if hasattr(pick, 'calculate_payout'):
-                payout = pick.calculate_payout()
-                assert payout == -100.0
+            payout = pick.calculate_payout()
+            assert payout == -100.0
 
 
 class TestBankrollHistory:
@@ -171,15 +172,12 @@ class TestBankrollHistory:
                 user_id=sample_user,
                 week=1,
                 season=2024,
-                starting_balance=1000.0,
-                ending_balance=1150.0,
-                picks_count=5,
-                wins=3,
-                losses=2
+                pick_type='FTD',
+                balance=1150.0
             )
             db.session.add(history)
             db.session.commit()
             
             assert history.id is not None
-            assert history.ending_balance == 1150.0
-            assert history.wins == 3
+            assert history.balance == 1150.0
+            assert history.week == 1

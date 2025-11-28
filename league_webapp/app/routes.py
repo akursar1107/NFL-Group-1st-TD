@@ -1,10 +1,10 @@
 from flask import Blueprint, render_template, jsonify, redirect, url_for, flash, request
-from app.models import User, Game, Pick
-from app import db, cache
+from .models import User, Game, Pick
+from . import db, cache
 from sqlalchemy import func, case
 from nfl_core.stats import get_first_td_scorers
 from datetime import datetime
-from app.data_loader import load_data_with_cache_web, get_current_nfl_week, get_all_td_scorers
+from .data_loader import load_data_with_cache_web, get_current_nfl_week, get_all_td_scorers
 
 bp = Blueprint('main', __name__)
 

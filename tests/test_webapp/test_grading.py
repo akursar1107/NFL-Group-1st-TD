@@ -16,9 +16,10 @@ class TestPickGrading:
             pick = Pick(
                 user_id=sample_user,
                 game_id=sample_game,
+                pick_type='FTD',
                 player_name='Patrick Mahomes',
                 odds=300,
-                bet_amount=100.0
+                stake=100.0
             )
             db.session.add(pick)
             
@@ -44,9 +45,10 @@ class TestPickGrading:
             pick = Pick(
                 user_id=sample_user,
                 game_id=sample_game,
+                pick_type='FTD',
                 player_name='Travis Kelce',
                 odds=800,
-                bet_amount=50.0
+                stake=50.0
             )
             db.session.add(pick)
             
@@ -71,9 +73,10 @@ class TestPickGrading:
             pick = Pick(
                 user_id=sample_user,
                 game_id=sample_game,
+                pick_type='FTD',
                 player_name='Patrick Mahomes',
                 odds=300,
-                bet_amount=100.0
+                stake=100.0
             )
             db.session.add(pick)
             
