@@ -11,10 +11,14 @@
         <div class="container">
             <a class="navbar-brand mb-0 h1" href="/">🏈 NFL First TD League</a>
             <div class="d-flex gap-2">
+                <!-- Navigation Links -->
+                <a href="/" class="btn btn-sm btn-outline-light">Standings</a>
+                <a href="/best-bets" class="btn btn-sm btn-outline-light">💰 Best Bets</a>
+                
                 <!-- Season Selector -->
                 {% if available_seasons %}
                 <div class="btn-group" role="group">
-                    <button type="button" class="btn btn-outline-light dropdown-toggle" data-bs-toggle="dropdown">
+                    <button type="button" class="btn btn-sm btn-outline-light dropdown-toggle" data-bs-toggle="dropdown">
                         {{ season }} Season
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
@@ -27,7 +31,7 @@
                 
                 <!-- Week Selector -->
                 <div class="btn-group" role="group">
-                    <button type="button" class="btn btn-outline-light dropdown-toggle" data-bs-toggle="dropdown">
+                    <button type="button" class="btn btn-sm btn-outline-light dropdown-toggle" data-bs-toggle="dropdown">
                         View Week
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">

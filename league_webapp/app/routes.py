@@ -2,9 +2,21 @@ from flask import Blueprint, render_template, jsonify, redirect, url_for, flash,
 from .models import User, Game, Pick
 from . import db, cache
 from sqlalchemy import func, case
-from nfl_core.stats import get_first_td_scorers
+from nfl_core.stats import (
+    get_first_td_scorers, 
+    get_player_season_stats, 
+    calculate_defense_rankings,
+    get_red_zone_stats,
+    get_opening_drive_stats,
+    get_team_red_zone_splits,
+    identify_funnel_defenses,
+    calculate_fair_odds,
+    get_player_position
+)
+from nfl_core.config import API_KEY, MARKET_1ST_TD
 from datetime import datetime
 from .data_loader import load_data_with_cache_web, get_current_nfl_week, get_all_td_scorers
+from .odds_fetcher import get_odds_api_event_ids_for_season, fetch_odds_data, get_best_odds_for_game
 
 bp = Blueprint('main', __name__)
 
@@ -743,6 +755,195 @@ def delete_pick(pick_id):
         flash(f'Error deleting pick: {str(e)}', 'danger')
     
     return redirect(url_for('main.week_view', week_num=week_num, season=season))
+
+@bp.route('/best-bets')
+@bp.route('/best-bets/<int:season>')
+def best_bets_scanner(season=None):
+    """
+    Best Bets Scanner - Find positive EV first touchdown bets for the current week.
+    Public route available to all users.
+    """
+    # Default to current season
+    if season is None:
+        season = 2025
+    
+    # Check if API key is configured
+    if not API_KEY:
+        flash('Best Bets Scanner requires an Odds API key. Please configure ODDS_API_KEY environment variable.', 'warning')
+        return render_template('best_bets.html', 
+                             bets=[], 
+                             error='API key not configured',
+                             season=season,
+                             week=None,
+                             last_updated=None)
+    
+    try:
+        # Load NFL data
+        schedule_df, pbp_df, roster_df = load_data_with_cache_web(season, use_cache=True)
+        
+        if schedule_df.height == 0:
+            return render_template('best_bets.html', 
+                                 bets=[], 
+                                 error='No schedule data available',
+                                 season=season,
+                                 week=None,
+                                 last_updated=None)
+        
+        # Get current week
+        import polars as pl
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        future_games = schedule_df.filter(pl.col("gameday") >= today_str)
+        
+        if future_games.height == 0:
+            return render_template('best_bets.html', 
+                                 bets=[], 
+                                 error='No upcoming games found',
+                                 season=season,
+                                 week=None,
+                                 last_updated=None)
+        
+        current_week = int(future_games["week"].cast(pl.Int64).min())
+        week_games = schedule_df.filter(pl.col("week").cast(pl.Int64) == current_week)
+        
+        # Calculate statistics (once for all games)
+        print(f"Calculating stats for {season} season...")
+        first_td_map = get_first_td_scorers(pbp_df, target_game_ids=None, roster_df=roster_df)
+        player_stats = get_player_season_stats(schedule_df, first_td_map, last_n_games=5)
+        defense_rankings = calculate_defense_rankings(schedule_df, first_td_map, roster_df)
+        funnel_defenses = identify_funnel_defenses(defense_rankings)
+        rz_stats = get_red_zone_stats(pbp_df, roster_df)
+        od_stats = get_opening_drive_stats(pbp_df, roster_df)
+        team_rz_splits = get_team_red_zone_splits(pbp_df)
+        
+        # Get odds API event mappings
+        print("Fetching odds event IDs...")
+        odds_event_map = get_odds_api_event_ids_for_season(schedule_df, API_KEY)
+        
+        # Collect all positive EV bets
+        all_bets = []
+        bankroll = 1000.0  # Default bankroll for Kelly calculations
+        
+        # Helper function for fuzzy player name matching
+        def get_stats(player_name):
+            if player_name in player_stats:
+                return player_stats[player_name]
+            # Fuzzy match
+            for k, v in player_stats.items():
+                if (k.lower() in player_name.lower() or player_name.lower() in k.lower()) and len(k) > 3 and len(player_name) > 3:
+                    return v
+            return None
+        
+        # Process each game
+        for game in week_games.to_dicts():
+            nfl_game_id = game['game_id']
+            home_team = game['home_team']
+            away_team = game['away_team']
+            game_date = game.get('gameday', '')
+            game_time = game.get('gametime', '')
+            
+            odds_event_id = odds_event_map.get(nfl_game_id)
+            if not odds_event_id:
+                continue
+            
+            print(f"Fetching odds for {away_team} @ {home_team}...")
+            odds_data = fetch_odds_data(odds_event_id, API_KEY)
+            
+            if not odds_data:
+                continue
+            
+            # Get best prices across all bookmakers
+            best_prices = get_best_odds_for_game(odds_data)
+            
+            # Calculate EV for each player
+            for player, price_data in best_prices.items():
+                stats = get_stats(player)
+                
+                if stats:
+                    prob = stats['prob']
+                    odds = price_data['price']
+                    bookmaker = price_data['bookmaker']
+                    
+                    # Calculate implied probability from odds
+                    if odds > 0:
+                        implied_prob = 100 / (odds + 100)
+                    else:
+                        implied_prob = abs(odds) / (abs(odds) + 100)
+                    
+                    # Calculate EV
+                    ev = prob - implied_prob
+                    ev_percent = ev * 100
+                    
+                    # Only include positive EV bets
+                    if ev > 0:
+                        # Calculate fair odds
+                        fair_odds = calculate_fair_odds(prob)
+                        
+                        # Kelly Criterion
+                        if odds > 0:
+                            decimal_odds = (odds / 100) + 1
+                        else:
+                            decimal_odds = (100 / abs(odds)) + 1
+                        
+                        kelly_fraction = (prob * decimal_odds - 1) / (decimal_odds - 1)
+                        kelly_bet = max(0, kelly_fraction * bankroll)
+                        
+                        # Get player position
+                        position = get_player_position(player, roster_df)
+                        
+                        # Get defense matchup info
+                        def_rank = None
+                        if position and position in defense_rankings.get(home_team, {}):
+                            def_rank = defense_rankings[home_team][position]['rank']
+                        
+                        # Funnel defense check
+                        funnel_type = funnel_defenses.get(home_team, {}).get('type', '')
+                        
+                        # Red zone and opening drive stats
+                        rz_rate = rz_stats.get(player, {}).get('rate', 0)
+                        od_rate = od_stats.get(player, {}).get('rate', 0)
+                        
+                        all_bets.append({
+                            'game': f"{away_team} @ {home_team}",
+                            'game_date': game_date,
+                            'game_time': game_time,
+                            'player': player,
+                            'position': position or '?',
+                            'odds': odds,
+                            'bookmaker': bookmaker,
+                            'your_prob': round(prob * 100, 1),
+                            'implied_prob': round(implied_prob * 100, 1),
+                            'fair_odds': fair_odds,
+                            'ev_percent': round(ev_percent, 2),
+                            'kelly_bet': round(kelly_bet, 2),
+                            'recent_form': f"{stats.get('recent_tds', 0)}/{stats.get('recent_games', 0)}",
+                            'rz_rate': round(rz_rate * 100, 1) if rz_rate else 0,
+                            'od_rate': round(od_rate * 100, 1) if od_rate else 0,
+                            'def_rank': def_rank,
+                            'funnel': funnel_type,
+                            'nfl_game_id': nfl_game_id
+                        })
+        
+        # Sort by EV descending
+        all_bets.sort(key=lambda x: x['ev_percent'], reverse=True)
+        
+        return render_template('best_bets.html',
+                             bets=all_bets,
+                             error=None,
+                             season=season,
+                             week=current_week,
+                             last_updated=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                             bankroll=bankroll)
+    
+    except Exception as e:
+        print(f"Error in best_bets_scanner: {e}")
+        import traceback
+        traceback.print_exc()
+        return render_template('best_bets.html',
+                             bets=[],
+                             error=f'Error loading best bets: {str(e)}',
+                             season=season,
+                             week=None,
+                             last_updated=None)
 
 @bp.route('/api/health')
 def health():
