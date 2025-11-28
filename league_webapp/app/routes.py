@@ -887,8 +887,9 @@ def best_bets_scanner(season=None):
                         kelly_fraction = (prob * decimal_odds - 1) / (decimal_odds - 1)
                         kelly_bet = max(0, kelly_fraction * bankroll)
                         
-                        # Get player position
-                        position = get_player_position(player, roster_df)
+                        # Get player position (need player_id from stats)
+                        player_id = stats.get('player_id', '')
+                        position = get_player_position(player_id, player, roster_df)
                         
                         # Get defense matchup info
                         def_rank = None
