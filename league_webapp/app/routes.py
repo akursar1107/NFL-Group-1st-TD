@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, jsonify, redirect, url_for, flash, request
-from .models import User, Game, Pick
+from .models import User, Game, Pick, MatchDecision
 from . import db, cache
 from sqlalchemy import func, case
 from nfl_core.stats import (
@@ -187,12 +187,16 @@ def week_view(week_num, season=None):
 def grade_week_route(week_num):
     """Admin route to grade a specific week"""
     from flask import request
+    from .fuzzy_matcher import NameMatcher
     
     # Get season from form or default to 2025
     season_str = request.form.get('season', '2025')
     season = int(season_str) if season_str and season_str.strip() else 2025
     
     try:
+        # Initialize fuzzy matcher
+        matcher = NameMatcher(auto_accept_threshold=0.85)
+        
         # Determine if we should use cached data
         current_week = get_current_nfl_week(season)
         use_cache = (week_num < current_week)  # Use cache for past weeks, fresh data for current week
@@ -220,6 +224,7 @@ def grade_week_route(week_num):
         picks_graded = 0
         picks_won = 0
         picks_lost = 0
+        needs_review_count = 0
         
         for game in games:
             if game.game_id not in first_td_map:
@@ -237,7 +242,7 @@ def grade_week_route(week_num):
             game.actual_first_td_player_id = td_data.get('player_id')
             game.is_final = True
             
-            # Grade picks
+            # Grade picks using fuzzy matcher
             picks = Pick.query.filter_by(game_id=game.id, pick_type='FTD').all()
             
             for pick in picks:
@@ -246,25 +251,40 @@ def grade_week_route(week_num):
                 
                 pick_player = pick.player_name.strip()
                 
-                # Fuzzy match
-                is_winner = False
-                if pick_player.lower() == actual_player.lower():
-                    is_winner = True
-                elif pick_player.lower() in actual_player.lower() or actual_player.lower() in pick_player.lower():
-                    if len(pick_player) > 3 and len(actual_player) > 3:
-                        is_winner = True
+                # Use fuzzy matcher to find best match
+                match_result = matcher.find_best_match(pick_player, [actual_player], min_score=0.0)
                 
-                if is_winner:
-                    pick.result = 'W'
-                    pick.payout = pick.calculate_payout()
-                    picks_won += 1
+                if match_result:
+                    # Create match decision record
+                    match_decision = MatchDecision(
+                        pick_id=pick.id,
+                        pick_name=pick_player,
+                        scorer_name=actual_player,
+                        match_score=match_result['score'],
+                        confidence=match_result['confidence'],
+                        match_reason=match_result['reason'],
+                        auto_accepted=match_result['auto_accept'],
+                        needs_review=not match_result['auto_accept']
+                    )
+                    db.session.add(match_decision)
+                    
+                    # Auto-accept high confidence matches
+                    if match_result['auto_accept']:
+                        pick.result = 'W'
+                        pick.payout = pick.calculate_payout()
+                        picks_won += 1
+                        pick.graded_at = datetime.utcnow()
+                        picks_graded += 1
+                    else:
+                        # Flag for manual review
+                        needs_review_count += 1
                 else:
+                    # No match found - mark as loss
                     pick.result = 'L'
                     pick.payout = -pick.stake
                     picks_lost += 1
-                
-                pick.graded_at = datetime.utcnow()
-                picks_graded += 1
+                    pick.graded_at = datetime.utcnow()
+                    picks_graded += 1
             
             games_graded += 1
         
@@ -272,6 +292,7 @@ def grade_week_route(week_num):
         atts_picks_graded = 0
         atts_picks_won = 0
         atts_picks_lost = 0
+        atts_needs_review = 0
         
         # Get all TD scorers for the week
         all_td_map = get_all_td_scorers(pbp_df, target_game_ids=game_ids, roster_df=roster_df)
@@ -286,6 +307,9 @@ def grade_week_route(week_num):
                 if not td_scorers:
                     continue
                 
+                # Extract scorer names for matching
+                scorer_names = [s.get('player', '').strip() for s in td_scorers if s.get('player')]
+                
                 # Grade ATTS picks for this game
                 atts_picks = Pick.query.filter_by(game_id=game.id, pick_type='ATTS').all()
                 
@@ -295,34 +319,40 @@ def grade_week_route(week_num):
                     
                     pick_player = pick.player_name.strip()
                     
-                    # Check if pick_player matches ANY TD scorer (fuzzy match)
-                    is_winner = False
-                    for scorer_data in td_scorers:
-                        actual_player = scorer_data.get('player', '').strip()
-                        
-                        if not actual_player:
-                            continue
-                        
-                        # Fuzzy match logic (same as FTD)
-                        if pick_player.lower() == actual_player.lower():
-                            is_winner = True
-                            break
-                        elif pick_player.lower() in actual_player.lower() or actual_player.lower() in pick_player.lower():
-                            if len(pick_player) > 3 and len(actual_player) > 3:
-                                is_winner = True
-                                break
+                    # Use fuzzy matcher to find best match among all TD scorers
+                    match_result = matcher.find_best_match(pick_player, scorer_names, min_score=0.0)
                     
-                    if is_winner:
-                        pick.result = 'W'
-                        pick.payout = pick.calculate_payout()
-                        atts_picks_won += 1
+                    if match_result:
+                        # Create match decision record
+                        match_decision = MatchDecision(
+                            pick_id=pick.id,
+                            pick_name=pick_player,
+                            scorer_name=match_result['matched_name'],
+                            match_score=match_result['score'],
+                            confidence=match_result['confidence'],
+                            match_reason=match_result['reason'],
+                            auto_accepted=match_result['auto_accept'],
+                            needs_review=not match_result['auto_accept']
+                        )
+                        db.session.add(match_decision)
+                        
+                        # Auto-accept high confidence matches
+                        if match_result['auto_accept']:
+                            pick.result = 'W'
+                            pick.payout = pick.calculate_payout()
+                            atts_picks_won += 1
+                            pick.graded_at = datetime.utcnow()
+                            atts_picks_graded += 1
+                        else:
+                            # Flag for manual review
+                            atts_needs_review += 1
                     else:
+                        # No match found - mark as loss
                         pick.result = 'L'
                         pick.payout = -pick.stake
                         atts_picks_lost += 1
-                    
-                    pick.graded_at = datetime.utcnow()
-                    atts_picks_graded += 1
+                        pick.graded_at = datetime.utcnow()
+                        atts_picks_graded += 1
         
         db.session.commit()
         
@@ -330,8 +360,12 @@ def grade_week_route(week_num):
         total_graded = picks_graded + atts_picks_graded
         total_won = picks_won + atts_picks_won
         total_lost = picks_lost + atts_picks_lost
+        total_needs_review = needs_review_count + atts_needs_review
         
-        flash(f'Graded {total_graded} picks across {games_graded} games: {total_won} wins, {total_lost} losses (FTD: {picks_graded}, ATTS: {atts_picks_graded})', 'success')
+        if total_needs_review > 0:
+            flash(f'Graded {total_graded} picks across {games_graded} games: {total_won} wins, {total_lost} losses, {total_needs_review} need review (FTD: {picks_graded}, ATTS: {atts_picks_graded})', 'warning')
+        else:
+            flash(f'Graded {total_graded} picks across {games_graded} games: {total_won} wins, {total_lost} losses (FTD: {picks_graded}, ATTS: {atts_picks_graded})', 'success')
         
     except Exception as e:
         flash(f'Error grading week: {str(e)}', 'danger')
@@ -465,12 +499,16 @@ def grade_current_week():
 def grade_all_weeks():
     """Admin route to grade all weeks at once"""
     from flask import request
+    from .fuzzy_matcher import NameMatcher
     
     # Get season from form or default to 2025
     season_str = request.form.get('season', '2025')
     season = int(season_str) if season_str and season_str.strip() else 2025
     
     try:
+        # Initialize fuzzy matcher
+        matcher = NameMatcher(auto_accept_threshold=0.85)
+        
         # Always use cached data for bulk grading (more efficient)
         schedule_df, pbp_df, roster_df = load_data_with_cache_web(season, use_cache=True)
         
@@ -494,8 +532,10 @@ def grade_all_weeks():
         total_picks_graded = 0
         total_picks_won = 0
         total_picks_lost = 0
+        ftd_needs_review = 0
         weeks_graded = set()
         
+        # Grade FTD picks
         for game in all_games:
             if game.game_id not in first_td_map:
                 continue
@@ -512,7 +552,7 @@ def grade_all_weeks():
             game.actual_first_td_player_id = td_data.get('player_id')
             game.is_final = True
             
-            # Grade picks
+            # Grade FTD picks using fuzzy matcher
             picks = Pick.query.filter_by(game_id=game.id, pick_type='FTD').all()
             
             for pick in picks:
@@ -521,37 +561,129 @@ def grade_all_weeks():
                 
                 pick_player = pick.player_name.strip()
                 
-                # Fuzzy match
-                is_winner = False
-                if pick_player.lower() == actual_player.lower():
-                    is_winner = True
-                elif pick_player.lower() in actual_player.lower() or actual_player.lower() in pick_player.lower():
-                    if len(pick_player) > 3 and len(actual_player) > 3:
-                        is_winner = True
+                # Use fuzzy matcher to find best match
+                match_result = matcher.find_best_match(pick_player, [actual_player], min_score=0.0)
                 
-                if is_winner:
-                    pick.result = 'W'
-                    pick.payout = pick.calculate_payout()
-                    total_picks_won += 1
+                if match_result and match_result['score'] >= 0.70:
+                    # Create match decision record for matches above 70% confidence
+                    match_decision = MatchDecision(
+                        pick_id=pick.id,
+                        pick_name=pick_player,
+                        scorer_name=actual_player,
+                        match_score=match_result['score'],
+                        confidence=match_result['confidence'],
+                        match_reason=match_result['reason'],
+                        auto_accepted=match_result['auto_accept'],
+                        needs_review=not match_result['auto_accept']
+                    )
+                    db.session.add(match_decision)
+                    
+                    # Auto-accept high confidence matches
+                    if match_result['auto_accept']:
+                        pick.result = 'W'
+                        pick.payout = pick.calculate_payout()
+                        total_picks_won += 1
+                        pick.graded_at = datetime.utcnow()
+                        total_picks_graded += 1
+                    else:
+                        # Flag for manual review but DON'T grade yet
+                        ftd_needs_review += 1
                 else:
+                    # No match found or very low confidence - mark as loss
                     pick.result = 'L'
                     pick.payout = -pick.stake
                     total_picks_lost += 1
-                
-                pick.graded_at = datetime.utcnow()
-                total_picks_graded += 1
+                    pick.graded_at = datetime.utcnow()
+                    total_picks_graded += 1
             
             total_games_graded += 1
             weeks_graded.add(game.week)
         
+        # === Grade ATTS picks ===
+        atts_picks_graded = 0
+        atts_picks_won = 0
+        atts_picks_lost = 0
+        atts_needs_review = 0
+        
+        # Get all TD scorers for all games
+        all_td_map = get_all_td_scorers(pbp_df, target_game_ids=game_ids, roster_df=roster_df)
+        
+        if all_td_map:
+            for game in all_games:
+                if game.game_id not in all_td_map:
+                    continue
+                
+                td_scorers = all_td_map[game.game_id]
+                
+                if not td_scorers:
+                    continue
+                
+                # Extract scorer names for matching
+                scorer_names = [s.get('player', '').strip() for s in td_scorers if s.get('player')]
+                
+                # Grade ATTS picks for this game
+                atts_picks = Pick.query.filter_by(game_id=game.id, pick_type='ATTS').all()
+                
+                for pick in atts_picks:
+                    if pick.graded_at:
+                        continue
+                    
+                    pick_player = pick.player_name.strip()
+                    
+                    # Use fuzzy matcher to find best match among all TD scorers
+                    match_result = matcher.find_best_match(pick_player, scorer_names, min_score=0.0)
+                    
+                    if match_result and match_result['score'] >= 0.70:
+                        # Create match decision record for matches above 70% confidence
+                        match_decision = MatchDecision(
+                            pick_id=pick.id,
+                            pick_name=pick_player,
+                            scorer_name=match_result['matched_name'],
+                            match_score=match_result['score'],
+                            confidence=match_result['confidence'],
+                            match_reason=match_result['reason'],
+                            auto_accepted=match_result['auto_accept'],
+                            needs_review=not match_result['auto_accept']
+                        )
+                        db.session.add(match_decision)
+                        
+                        # Auto-accept high confidence matches
+                        if match_result['auto_accept']:
+                            pick.result = 'W'
+                            pick.payout = pick.calculate_payout()
+                            atts_picks_won += 1
+                            pick.graded_at = datetime.utcnow()
+                            atts_picks_graded += 1
+                        else:
+                            # Flag for manual review but DON'T grade yet
+                            atts_needs_review += 1
+                    else:
+                        # No match found or very low confidence - mark as loss
+                        pick.result = 'L'
+                        pick.payout = -pick.stake
+                        atts_picks_lost += 1
+                        pick.graded_at = datetime.utcnow()
+                        atts_picks_graded += 1
+        
         db.session.commit()
         
-        flash(f'Graded all weeks! {total_picks_graded} picks across {total_games_graded} games in {len(weeks_graded)} weeks: {total_picks_won} wins, {total_picks_lost} losses', 'success')
+        # Combined flash message
+        total_graded = total_picks_graded + atts_picks_graded
+        total_won = total_picks_won + atts_picks_won
+        total_lost = total_picks_lost + atts_picks_lost
+        total_needs_review = ftd_needs_review + atts_needs_review
+        
+        if total_needs_review > 0:
+            flash(f'Graded {total_graded} picks across {total_games_graded} games in {len(weeks_graded)} weeks: {total_won} wins, {total_lost} losses, {total_needs_review} need review (FTD: {total_picks_graded}, ATTS: {atts_picks_graded})', 'warning')
+        else:
+            flash(f'Graded {total_graded} picks across {total_games_graded} games in {len(weeks_graded)} weeks: {total_won} wins, {total_lost} losses (FTD: {total_picks_graded}, ATTS: {atts_picks_graded})', 'success')
         
     except Exception as e:
+        db.session.rollback()
         flash(f'Error grading all weeks: {str(e)}', 'danger')
     
-    return redirect(url_for('main.index'))
+    # Redirect back to all-picks page if that's where we came from
+    return redirect(request.referrer or url_for('main.index'))
 
 @bp.route('/user/<int:user_id>')
 @bp.route('/season/<int:season>/user/<int:user_id>')
@@ -1513,7 +1645,469 @@ def team_history_api(season, team, week='ALL'):
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
+@bp.route('/admin/all-picks')
+@bp.route('/admin/all-picks/<int:season>')
+def all_picks_admin(season=None):
+    """Admin page showing all picks for mass editing (ADMIN ONLY - enforcement TODO)"""
+    # TODO: Add @admin_required decorator when authentication is implemented
+    
+    if season is None:
+        season = 2025
+    
+    # Get all available seasons
+    available_seasons = db.session.query(Game.season).distinct().order_by(Game.season.desc()).all()
+    available_seasons = [s[0] for s in available_seasons]
+    
+    # Get all picks for the season with related data
+    picks = Pick.query.join(Game).join(User).filter(
+        Game.season == season
+    ).order_by(
+        Game.week.desc(),
+        Game.game_date.desc(),
+        User.username,
+        Pick.pick_type
+    ).all()
+    
+    return render_template('admin_all_picks.html',
+                         picks=picks,
+                         season=season,
+                         available_seasons=available_seasons)
+
+@bp.route('/api/standardize-picks/<int:season>', methods=['POST'])
+def standardize_picks(season):
+    """
+    API endpoint to standardize player names and fill missing positions.
+    Returns suggested changes for admin review.
+    Uses fuzzy matching for accurate player identification.
+    """
+    from .fuzzy_matcher import NameMatcher
+    
+    try:
+        # Load roster data
+        schedule_df, pbp_df, roster_df = load_data_with_cache_web(season, use_cache=True)
+        
+        # Get all picks for this season
+        picks = Pick.query.join(Game).filter(Game.season == season).all()
+        
+        suggestions = []
+        missing_atts = []
+        
+        # Initialize fuzzy matcher
+        matcher = NameMatcher(auto_accept_threshold=0.85)
+        
+        # Check for missing ATTS picks
+        ftd_picks = [p for p in picks if p.pick_type == 'FTD']
+        for ftd_pick in ftd_picks:
+            # Check if corresponding ATTS pick exists
+            atts_exists = any(
+                p.user_id == ftd_pick.user_id and 
+                p.game_id == ftd_pick.game_id and 
+                p.pick_type == 'ATTS'
+                for p in picks
+            )
+            
+            if not atts_exists:
+                missing_atts.append({
+                    'ftd_pick_id': ftd_pick.id,
+                    'user': ftd_pick.user.username,
+                    'user_id': ftd_pick.user_id,
+                    'game_id': ftd_pick.game_id,
+                    'week': ftd_pick.game.week,
+                    'game': f"{ftd_pick.game.away_team} @ {ftd_pick.game.home_team}",
+                    'player_name': ftd_pick.player_name,
+                    'player_position': ftd_pick.player_position,
+                    'odds': ftd_pick.odds,
+                    'stake': ftd_pick.stake
+                })
+        
+        # Get all roster names for fuzzy matching
+        roster_names = []
+        roster_lookup = {}
+        if roster_df is not None and not roster_df.is_empty():
+            for row in roster_df.iter_rows(named=True):
+                full_name = row.get('full_name', '')
+                position = row.get('position', '')
+                if full_name:
+                    roster_names.append(full_name)
+                    roster_lookup[full_name] = position
+        
+        for pick in picks:
+            changes = {}
+            
+            # Check player name standardization
+            player_name = pick.player_name.strip()
+            
+            if roster_df is not None and not roster_df.is_empty():
+                # Always use fuzzy matcher to find best match
+                match_result = matcher.find_best_match(player_name, roster_names, min_score=0.70)
+                
+                if match_result and match_result['confidence'] in ['high', 'exact']:
+                    suggested_name = match_result['matched_name']
+                    suggested_pos = roster_lookup.get(suggested_name)
+                    
+                    # Suggest name change if different from current (standardize to full name)
+                    if suggested_name != player_name:
+                        changes['player_name'] = {
+                            'current': player_name,
+                            'suggested': suggested_name,
+                            'confidence': match_result['confidence'],
+                            'score': round(match_result['score'], 3)
+                        }
+                    
+                    # Fill position if missing
+                    if not pick.player_position and suggested_pos:
+                        changes['player_position'] = {
+                            'current': pick.player_position,
+                            'suggested': suggested_pos
+                        }
+            
+            if changes:
+                suggestions.append({
+                    'pick_id': pick.id,
+                    'user': pick.user.username,
+                    'week': pick.game.week,
+                    'game': f"{pick.game.away_team} @ {pick.game.home_team}",
+                    'changes': changes
+                })
+        
+        return jsonify({
+            'success': True,
+            'suggestions': suggestions,
+            'missing_atts': missing_atts,
+            'total': len(suggestions),
+            'total_missing_atts': len(missing_atts)
+        })
+        
+    except Exception as e:
+        print(f"Error standardizing picks: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@bp.route('/api/apply-standardization', methods=['POST'])
+def apply_standardization():
+    """Apply approved standardization changes to picks"""
+    try:
+        data = request.get_json()
+        approved_changes = data.get('changes', [])
+        create_atts = data.get('create_atts', [])
+        
+        updated_count = 0
+        created_count = 0
+        
+        # Apply field changes to existing picks
+        for change in approved_changes:
+            pick = Pick.query.get(change['pick_id'])
+            if not pick:
+                continue
+            
+            changes = change.get('changes', {})
+            
+            if 'player_name' in changes:
+                pick.player_name = changes['player_name']['suggested']
+            
+            if 'player_position' in changes:
+                pick.player_position = changes['player_position']['suggested']
+            
+            updated_count += 1
+        
+        # Create missing ATTS picks
+        for atts_data in create_atts:
+            new_pick = Pick(
+                user_id=atts_data['user_id'],
+                game_id=atts_data['game_id'],
+                pick_type='ATTS',
+                player_name=atts_data['player_name'],
+                player_position=atts_data.get('player_position'),
+                odds=atts_data['odds'],
+                stake=atts_data['stake']
+            )
+            db.session.add(new_pick)
+            created_count += 1
+        
+        db.session.commit()
+        
+        message = f'Successfully updated {updated_count} pick(s)'
+        if created_count > 0:
+            message += f' and created {created_count} ATTS pick(s)'
+        
+        return jsonify({
+            'success': True,
+            'updated': updated_count,
+            'created': created_count,
+            'message': message
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error applying standardization: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@bp.route('/admin/match-review')
+def match_review():
+    """Admin page to review fuzzy matches that need manual approval"""
+    # Get sort parameter
+    sort_by = request.args.get('sort', 'date')  # 'date', 'confidence', 'score'
+    
+    # Get all match decisions
+    if sort_by == 'confidence':
+        # Sort by confidence level (exact > high > medium > low), then by score
+        confidence_order = {'exact': 4, 'high': 3, 'medium': 2, 'low': 1}
+        all_matches = MatchDecision.query.all()
+        all_matches.sort(key=lambda m: (confidence_order.get(m.confidence, 0), m.match_score), reverse=True)
+    elif sort_by == 'score':
+        all_matches = MatchDecision.query.order_by(MatchDecision.match_score.desc()).all()
+    else:  # default to date
+        all_matches = MatchDecision.query.order_by(MatchDecision.created_at.desc()).all()
+    
+    # Filter pending matches
+    pending_matches = [m for m in all_matches if m.needs_review and not m.manual_decision]
+    
+    # Calculate stats
+    stats = {
+        'total': len(all_matches),
+        'needs_review': len(pending_matches),
+        'auto_accepted': sum(1 for m in all_matches if m.auto_accepted),
+        'approved': sum(1 for m in all_matches if m.manual_decision == 'approved'),
+        'rejected': sum(1 for m in all_matches if m.manual_decision == 'rejected'),
+        'auto_accept_rate': sum(1 for m in all_matches if m.auto_accepted) / len(all_matches) if all_matches else 0,
+        'confidence_dist': {
+            'exact': sum(1 for m in all_matches if m.confidence == 'exact'),
+            'high': sum(1 for m in all_matches if m.confidence == 'high'),
+            'medium': sum(1 for m in all_matches if m.confidence == 'medium'),
+            'low': sum(1 for m in all_matches if m.confidence == 'low'),
+        }
+    }
+    
+    return render_template('admin_match_review.html',
+                          pending_matches=pending_matches,
+                          all_matches=all_matches,
+                          stats=stats,
+                          current_sort=sort_by)
+
+@bp.route('/admin/match-review/<int:match_id>', methods=['POST'])
+def review_match(match_id):
+    """Approve or reject a specific fuzzy match"""
+    decision = request.form.get('decision')  # 'approve' or 'reject'
+    
+    if decision not in ['approve', 'reject']:
+        flash('Invalid decision', 'danger')
+        return redirect(url_for('main.match_review'))
+    
+    match = MatchDecision.query.get_or_404(match_id)
+    pick = match.pick
+    
+    # Record the decision
+    match.manual_decision = 'approved' if decision == 'approve' else 'rejected'
+    match.reviewed_by = 'admin'  # TODO: Get actual admin username from session
+    match.reviewed_at = datetime.utcnow()
+    match.needs_review = False
+    
+    # Update the pick result based on decision
+    if decision == 'approve':
+        pick.result = 'W'
+        pick.payout = pick.calculate_payout()
+        pick.graded_at = datetime.utcnow()
+        flash(f'Match approved: "{match.pick_name}" → "{match.scorer_name}"', 'success')
+    else:
+        pick.result = 'L'
+        pick.payout = -pick.stake
+        pick.graded_at = datetime.utcnow()
+        flash(f'Match rejected: "{match.pick_name}" ≠ "{match.scorer_name}"', 'warning')
+    
+    db.session.commit()
+    
+    return redirect(url_for('main.match_review'))
+
+@bp.route('/admin/match-review/bulk-approve', methods=['POST'])
+def bulk_approve_matches():
+    """Approve all pending matches"""
+    pending_matches = MatchDecision.query.filter_by(needs_review=True, manual_decision=None).all()
+    
+    count = 0
+    for match in pending_matches:
+        match.manual_decision = 'approved'
+        match.reviewed_by = 'admin'
+        match.reviewed_at = datetime.utcnow()
+        match.needs_review = False
+        
+        pick = match.pick
+        pick.result = 'W'
+        pick.payout = pick.calculate_payout()
+        pick.graded_at = datetime.utcnow()
+        count += 1
+    
+    db.session.commit()
+    flash(f'Bulk approved {count} matches', 'success')
+    
+    return redirect(url_for('main.match_review'))
+
+@bp.route('/admin/match-review/bulk-reject', methods=['POST'])
+def bulk_reject_matches():
+    """Reject all pending matches"""
+    pending_matches = MatchDecision.query.filter_by(needs_review=True, manual_decision=None).all()
+    
+    count = 0
+    for match in pending_matches:
+        match.manual_decision = 'rejected'
+        match.reviewed_by = 'admin'
+        match.reviewed_at = datetime.utcnow()
+        match.needs_review = False
+        
+        pick = match.pick
+        pick.result = 'L'
+        pick.payout = -pick.stake
+        pick.graded_at = datetime.utcnow()
+        count += 1
+    
+    db.session.commit()
+    flash(f'Bulk rejected {count} matches', 'warning')
+    
+    return redirect(url_for('main.match_review'))
+
+@bp.route('/admin/match-review/<int:match_id>/revert', methods=['POST'])
+def revert_match(match_id):
+    """Revert a manually approved/rejected match back to pending review"""
+    match = MatchDecision.query.get_or_404(match_id)
+    pick = match.pick
+    
+    # Only allow reverting manually reviewed matches
+    if not match.manual_decision:
+        flash('Can only revert manually reviewed matches', 'warning')
+        return redirect(url_for('main.match_review'))
+    
+    # Store old decision for message
+    old_decision = match.manual_decision
+    
+    # Reset match decision to pending
+    match.manual_decision = None
+    match.reviewed_by = None
+    match.reviewed_at = None
+    match.needs_review = True
+    
+    # Reset pick to pending
+    pick.result = 'Pending'
+    pick.payout = 0.0
+    pick.graded_at = None
+    
+    db.session.commit()
+    flash(f'Reverted {old_decision} match: "{match.pick_name}" → "{match.scorer_name}" back to pending review', 'info')
+    
+    return redirect(url_for('main.match_review'))
+
+@bp.route('/admin/match-review/bulk-revert-approved', methods=['POST'])
+def bulk_revert_approved():
+    """Revert all manually approved matches back to pending review"""
+    approved_matches = MatchDecision.query.filter_by(manual_decision='approved').all()
+    
+    count = 0
+    for match in approved_matches:
+        # Reset match decision to pending
+        match.manual_decision = None
+        match.reviewed_by = None
+        match.reviewed_at = None
+        match.needs_review = True
+        
+        # Reset pick to pending
+        pick = match.pick
+        pick.result = 'Pending'
+        pick.payout = 0.0
+        pick.graded_at = None
+        count += 1
+    
+    db.session.commit()
+    flash(f'Reverted {count} manually approved matches back to pending review', 'info')
+    
+    return redirect(url_for('main.match_review'))
+
 @bp.route('/api/health')
 def health():
     """Health check endpoint"""
     return jsonify({'status': 'ok', 'database': 'connected'})
+
+@bp.route('/api/match-stats')
+def match_stats():
+    """API endpoint for fuzzy match statistics"""
+    from .fuzzy_matcher import NameMatcher
+    
+    # Get all match decisions
+    all_matches = MatchDecision.query.all()
+    
+    if not all_matches:
+        return jsonify({
+            'total': 0,
+            'message': 'No match data available yet'
+        })
+    
+    # Build match dict for stats calculation
+    matches_dict = {}
+    for m in all_matches:
+        matches_dict[m.pick_name] = {
+            'matched_name': m.scorer_name,
+            'score': m.match_score,
+            'confidence': m.confidence,
+            'auto_accept': m.auto_accepted
+        }
+    
+    # Use NameMatcher to calculate stats
+    matcher = NameMatcher()
+    stats = matcher.get_confidence_stats(matches_dict)
+    
+    # Add additional detailed stats
+    stats['by_confidence'] = {
+        'exact': {
+            'count': sum(1 for m in all_matches if m.confidence == 'exact'),
+            'auto_accepted': sum(1 for m in all_matches if m.confidence == 'exact' and m.auto_accepted),
+            'approved': sum(1 for m in all_matches if m.confidence == 'exact' and m.manual_decision == 'approved'),
+            'rejected': sum(1 for m in all_matches if m.confidence == 'exact' and m.manual_decision == 'rejected'),
+        },
+        'high': {
+            'count': sum(1 for m in all_matches if m.confidence == 'high'),
+            'auto_accepted': sum(1 for m in all_matches if m.confidence == 'high' and m.auto_accepted),
+            'approved': sum(1 for m in all_matches if m.confidence == 'high' and m.manual_decision == 'approved'),
+            'rejected': sum(1 for m in all_matches if m.confidence == 'high' and m.manual_decision == 'rejected'),
+        },
+        'medium': {
+            'count': sum(1 for m in all_matches if m.confidence == 'medium'),
+            'auto_accepted': sum(1 for m in all_matches if m.confidence == 'medium' and m.auto_accepted),
+            'approved': sum(1 for m in all_matches if m.confidence == 'medium' and m.manual_decision == 'approved'),
+            'rejected': sum(1 for m in all_matches if m.confidence == 'medium' and m.manual_decision == 'rejected'),
+        },
+        'low': {
+            'count': sum(1 for m in all_matches if m.confidence == 'low'),
+            'auto_accepted': sum(1 for m in all_matches if m.confidence == 'low' and m.auto_accepted),
+            'approved': sum(1 for m in all_matches if m.confidence == 'low' and m.manual_decision == 'approved'),
+            'rejected': sum(1 for m in all_matches if m.confidence == 'low' and m.manual_decision == 'rejected'),
+        }
+    }
+    
+    # Score distribution
+    score_ranges = {
+        '0.95-1.00': sum(1 for m in all_matches if 0.95 <= m.match_score <= 1.0),
+        '0.85-0.95': sum(1 for m in all_matches if 0.85 <= m.match_score < 0.95),
+        '0.70-0.85': sum(1 for m in all_matches if 0.70 <= m.match_score < 0.85),
+        '0.50-0.70': sum(1 for m in all_matches if 0.50 <= m.match_score < 0.70),
+        '0.00-0.50': sum(1 for m in all_matches if m.match_score < 0.50),
+    }
+    stats['score_distribution'] = score_ranges
+    
+    # Manual review accuracy (how often did manual reviews agree with the algorithm suggestion?)
+    manual_reviews = [m for m in all_matches if m.manual_decision]
+    if manual_reviews:
+        # Consider "approved" as agreeing with the match suggestion
+        stats['manual_review_accuracy'] = {
+            'total_reviews': len(manual_reviews),
+            'approved': sum(1 for m in manual_reviews if m.manual_decision == 'approved'),
+            'rejected': sum(1 for m in manual_reviews if m.manual_decision == 'rejected'),
+            'approval_rate': sum(1 for m in manual_reviews if m.manual_decision == 'approved') / len(manual_reviews)
+        }
+    
+    return jsonify(stats)

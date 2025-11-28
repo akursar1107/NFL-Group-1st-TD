@@ -121,3 +121,40 @@ class BankrollHistory(db.Model):
     
     def __repr__(self):
         return f'<BankrollHistory {self.user.username} Week {self.week}: ${self.balance}>'
+
+
+class MatchDecision(db.Model):
+    """Track fuzzy match decisions for player names"""
+    __tablename__ = 'match_decisions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    pick_id = db.Column(db.Integer, db.ForeignKey('picks.id'), nullable=False, index=True)
+    
+    # The names being matched
+    pick_name = db.Column(db.String(100), nullable=False)
+    scorer_name = db.Column(db.String(100), nullable=False)
+    
+    # Match scoring details
+    match_score = db.Column(db.Float, nullable=False)  # 0.0 to 1.0
+    confidence = db.Column(db.String(20), nullable=False)  # 'exact', 'high', 'medium', 'low'
+    match_reason = db.Column(db.String(200))  # Explanation of the match
+    
+    # Decision tracking
+    auto_accepted = db.Column(db.Boolean, default=False)  # Auto-accepted by algorithm
+    needs_review = db.Column(db.Boolean, default=False)  # Flagged for manual review
+    manual_decision = db.Column(db.String(20))  # 'approved', 'rejected', or NULL if not reviewed
+    reviewed_by = db.Column(db.String(50))  # Admin username who reviewed
+    reviewed_at = db.Column(db.DateTime)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship to pick
+    pick = db.relationship('Pick', backref='match_decision', uselist=False)
+    
+    __table_args__ = (
+        db.Index('idx_needs_review', 'needs_review', 'created_at'),
+        db.Index('idx_confidence', 'confidence'),
+    )
+    
+    def __repr__(self):
+        return f'<MatchDecision "{self.pick_name}" → "{self.scorer_name}" ({self.confidence}, {self.match_score:.2f})>'
