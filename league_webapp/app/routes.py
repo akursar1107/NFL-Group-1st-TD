@@ -1481,45 +1481,6 @@ def analysis_page(season=None):
                              defense_data=None,
                              trends_data=None)
 
-@bp.route('/admin/import-data')
-def import_data_page():
-    """Page for importing historical NFL data from nflreadpy (ADMIN ONLY - enforcement TODO)"""
-    # TODO: Add @admin_required decorator when authentication is implemented
-    return render_template('import_data.html')
-
-@bp.route('/api/import-season/<int:season>', methods=['POST'])
-def import_season(season):
-    """
-    API endpoint to import/refresh data for a specific season.
-    Downloads fresh data from nflreadpy and caches it.
-    ADMIN ONLY - enforcement TODO
-    """
-    # TODO: Add @admin_required decorator when authentication is implemented
-    try:
-        from app.data_loader import load_data_with_cache_web
-        
-        # Force fresh download by setting use_cache=False
-        schedule_df, pbp_df, roster_df = load_data_with_cache_web(season, use_cache=False)
-        
-        return jsonify({
-            'success': True,
-            'message': f'Successfully imported {season} season data',
-            'stats': {
-                'games': schedule_df.height,
-                'plays': pbp_df.height,
-                'players': roster_df.height
-            }
-        })
-        
-    except Exception as e:
-        print(f"Error importing season {season}: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
 @bp.route('/api/team-history/<int:season>/<team>')
 @bp.route('/api/team-history/<int:season>/<team>/<week>')
 def team_history_api(season, team, week='ALL'):
