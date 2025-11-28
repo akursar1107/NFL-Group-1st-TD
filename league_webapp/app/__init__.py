@@ -1,7 +1,7 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_caching import Cache
-from app.config import Config
+from .config import Config
 
 db = SQLAlchemy()
 cache = Cache()
@@ -16,7 +16,7 @@ def create_app(config_class=Config):
     cache.init_app(app, config={'CACHE_TYPE': 'SimpleCache', 'CACHE_DEFAULT_TIMEOUT': 300})
     
     # Register blueprints (will add routes later)
-    from app import routes
+    from . import routes
     app.register_blueprint(routes.bp)
     
     # Create database tables

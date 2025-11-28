@@ -49,7 +49,12 @@ Thumbs.db
 
 # Testing
 *test_imports.py
-*.pytest_cache/
+.pytest_cache/
+*/.pytest_cache/
+htmlcov/
+.coverage
+*.cover
+.hypothesis/
 
 # Dev documentation
 *SUMMARY.md
