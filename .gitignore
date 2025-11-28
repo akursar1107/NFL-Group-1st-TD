@@ -1,23 +1,57 @@
-# Ignore virtual environments
+# Python
+__pycache__/
+*/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
 venv/
 */venv/
 env/
 */env/
 
-# Ignore python cache
-__pycache__/
-*/__pycache__/
-*.pyc
-
-# Ignore VS Code settings
+# IDEs
 .vscode/
+.idea/
+*.swp
+*.swo
 
-# Ignore environment variables
+# Environment variables
 .env
+.env.local
 
-# Ignore other projects
-NFL TD Scorers/
+# Database
+*.db
+*.sqlite
+*.sqlite3
+instance/
+*/instance/
 
-# Ignore specific files
-getOdds.py
-'First TD - 2025 (1).csv'
+# Cache
+cache/
+*/cache/
+*.parquet
+
+# Logs
+*.log
+import_log.txt
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+*test_imports.py
+*.pytest_cache/
+
+# Dev documentation
+*SUMMARY.md
+*GUIDE.md
+*_OPTIMIZATION.md
