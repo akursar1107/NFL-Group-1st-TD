@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analysis - First TD League</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand mb-0 h1" href="/">🏈 NFL First TD League</a>
+            <div class="d-flex gap-2">
+                <a href="/" class="btn btn-sm btn-outline-light">Standings</a>
+                <a href="/best-bets" class="btn btn-sm btn-outline-light">💰 Best Bets</a>
+                <a href="/analysis" class="btn btn-sm btn-outline-light active">📊 Analysis</a>
+            </div>
+        </div>
+    </nav>
+
+<div class="container-fluid mt-4">
+    <div class="row mb-3">
+        <div class="col-12">
+            <h1 class="display-5">
+                <i class="bi bi-graph-up"></i> Statistical Analysis
+                <small class="text-muted fs-6">{{ season }} Season</small>
+            </h1>
+            {% if last_updated %}
+            <p class="text-muted mb-0">
+                <i class="bi bi-clock"></i> Last updated: {{ last_updated }}
+                {% if current_week %}| Current week: {{ current_week }}{% endif %}
+            </p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger" role="alert">
+        <i class="bi bi-exclamation-triangle-fill"></i> {{ error }}
+    </div>
+    {% else %}
+
+    <!-- Tab Navigation -->
+    <ul class="nav nav-tabs mb-3" id="analysisTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="player-tab" data-bs-toggle="tab" data-bs-target="#player-research" 
+                    type="button" role="tab" aria-controls="player-research" aria-selected="true">
+                <i class="bi bi-person-circle"></i> Player Research
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="team-tab" data-bs-toggle="tab" data-bs-target="#team-analysis" 
+                    type="button" role="tab" aria-controls="team-analysis" aria-selected="false">
+                <i class="bi bi-shield-fill"></i> Team Analysis
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="defense-tab" data-bs-toggle="tab" data-bs-target="#defense-analysis" 
+                    type="button" role="tab" aria-controls="defense-analysis" aria-selected="false">
+                <i class="bi bi-bar-chart-fill"></i> Defense Analysis
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="trends-tab" data-bs-toggle="tab" data-bs-target="#trends-insights" 
+                    type="button" role="tab" aria-controls="trends-insights" aria-selected="false">
+                <i class="bi bi-graph-up-arrow"></i> Trends & Insights
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="analysisTabContent">
+        
+        <!-- PLAYER RESEARCH TAB -->
+        <div class="tab-pane fade show active" id="player-research" role="tabpanel" aria-labelledby="player-tab">
+            {% if player_data and player_data.players %}
+            <div class="row mb-2">
+                <div class="col-md-3">
+                    <input type="text" class="form-control" id="playerSearch" placeholder="Search by player name...">
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" id="positionFilter">
+                        <option value="all" selected>All Positions</option>
+                        <option value="QB">QB</option>
+                        <option value="RB">RB</option>
+                        <option value="WR">WR</option>
+                        <option value="TE">TE</option>
+                        <option value="D/ST">D/ST</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" id="teamFilter">
+                        <option value="all" selected>All Teams</option>
+                        {% for team in player_data.teams|sort %}
+                        <option value="{{ team }}">{{ team }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 text-end">
+                    <small class="text-muted"><span id="playerCount">{{ player_data.total_count }}</span> players tracked</small>
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <select class="form-select" id="timeRangeFilter">
+                        <option value="full" selected>Full Season Stats</option>
+                        <option value="recent">Last 5 Games Stats</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <select class="form-select" id="gameTypeFilter">
+                        <option value="all" selected>All Games</option>
+                        <option value="standalone">Standalone Games Only</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-striped table-hover" id="playerTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Player</th>
+                            <th>Pos</th>
+                            <th>Team</th>
+                            <th class="text-center" id="formHeader">Form</th>
+                            <th class="text-center">Season FTDs</th>
+                            <th class="text-center">RZ Rate</th>
+                            <th class="text-center">OD Rate</th>
+                            <th>First TD History</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for player in player_data.players %}
+                        <tr data-season-tds="{{ player.season_tds }}" 
+                            data-standalone-tds="{{ player.season_tds_standalone }}"
+                            data-ftd-history='{{ player.ftd_history|tojson }}'
+                            data-ftd-history-standalone='{{ player.ftd_history_standalone|tojson }}'
+                            data-recent-form="{{ player.recent_form }}"
+                            data-full-form="{{ player.full_form }}"
+                            style="cursor: pointer;"
+                            onclick="showPlayerGames(this)">
+                            <td><strong><i class="bi bi-info-circle me-1"></i>{{ player.player }}</strong></td>
+                            <td><span class="badge bg-secondary">{{ player.position }}</span></td>
+                            <td>{{ player.team }}</td>
+                            <td class="text-center recent-form-cell">{{ player.full_form }}</td>
+                            <td class="text-center season-tds-cell">
+                                <strong>{{ player.season_tds }}</strong>
+                            </td>
+                            <td class="text-center" title="{{ player.rz_tds }}/{{ player.rz_opps }} RZ TDs">
+                                {{ player.rz_rate }}%
+                            </td>
+                            <td class="text-center" title="{{ player.od_tds }}/{{ player.od_opps }} OD TDs">
+                                {{ player.od_rate }}%
+                            </td>
+                            <td class="ftd-history-cell">
+                                {% if player.ftd_history %}
+                                <small>
+                                    {% for game in player.ftd_history[:3] %}
+                                    <span class="badge {% if game.is_standalone %}bg-success{% else %}bg-info{% endif %} me-1">
+                                        W{{ game.week }} vs {{ game.opponent }} ({{ game.location }})
+                                    </span>
+                                    {% endfor %}
+                                    {% if player.ftd_history|length > 3 %}
+                                    <span class="text-muted">+{{ player.ftd_history|length - 3 }} more</span>
+                                    {% endif %}
+                                </small>
+                                {% else %}
+                                <small class="text-muted">None this season</small>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="bi bi-info-circle"></i> Understanding the Stats</h5>
+                            <ul class="mb-0">
+                                <li><strong>Form:</strong> First TDs scored / Games played (toggle between Last 5 Games or Full Season using the dropdown)</li>
+                                <li><strong>Season FTDs:</strong> Total first touchdown scores this season (filters by game type when "Standalone Games Only" selected)</li>
+                                <li><strong>RZ Rate:</strong> Red zone touchdown conversion rate (hover for TDs/Opportunities)</li>
+                                <li><strong>OD Rate:</strong> Opening drive touchdown conversion rate (hover for TDs/Opportunities)</li>
+                                <li><strong>Game Type Filter:</strong> "Standalone Games Only" shows only Thursday/Monday/Sunday Night games where picks are allowed</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> No player data available for this season.
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Player Games Modal -->
+        <div class="modal fade" id="playerGamesModal" tabindex="-1" aria-labelledby="playerGamesModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="playerGamesModalLabel">Player First TD Games</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="playerGamesContent">
+                        <!-- Content will be populated by JavaScript -->
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TEAM ANALYSIS TAB -->
+        <div class="tab-pane fade" id="team-analysis" role="tabpanel" aria-labelledby="team-tab">
+            {% if team_data and team_data.leaderboard %}
+            <h4 class="mb-3">Team First TD Leaderboard</h4>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Rank</th>
+                            <th>Team</th>
+                            <th class="text-center">Games</th>
+                            <th class="text-center">First TDs</th>
+                            <th class="text-center">Success %</th>
+                            <th class="text-center">Home FTD%</th>
+                            <th class="text-center">Away FTD%</th>
+                            <th class="text-center">H/A Diff</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for team in team_data.leaderboard %}
+                        <tr>
+                            <td><strong>{{ loop.index }}</strong></td>
+                            <td><strong>{{ team.team }}</strong></td>
+                            <td class="text-center">{{ team.games }}</td>
+                            <td class="text-center"><strong>{{ team.first_tds }}</strong></td>
+                            <td class="text-center">
+                                <span class="badge {% if team.pct >= 60 %}bg-success{% elif team.pct >= 40 %}bg-warning{% else %}bg-secondary{% endif %}">
+                                    {{ team.pct }}%
+                                </span>
+                            </td>
+                            <td class="text-center">{{ team.home_rz_rate }}%</td>
+                            <td class="text-center">{{ team.away_rz_rate }}%</td>
+                            <td class="text-center">
+                                <span class="{% if team.split_diff > 5 %}text-success{% elif team.split_diff < -5 %}text-danger{% endif %}">
+                                    {{ "+" if team.split_diff > 0 else "" }}{{ team.split_diff }}%
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="bi bi-lightbulb"></i> Key Insights</h5>
+                            <ul class="mb-0">
+                                <li><strong>Success %:</strong> Percentage of games where team scored first TD</li>
+                                <li><strong>Home/Away FTD%:</strong> First TD scoring percentage by location</li>
+                                <li><strong>H/A Diff:</strong> Home advantage in first TD scoring (green = strong home team, red = better on road)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> No team data available for this season.
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- DEFENSE ANALYSIS TAB -->
+        <div class="tab-pane fade" id="defense-analysis" role="tabpanel" aria-labelledby="defense-tab">
+            {% if defense_data and defense_data.matrix %}
+            <h4 class="mb-3">Defense vs Position Rankings</h4>
+            <p class="text-muted">Lower rank = tougher defense against that position (harder matchup for FTD)</p>
+
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Team</th>
+                            {% for pos in defense_data.positions %}
+                            <th class="text-center">{{ pos }}</th>
+                            {% endfor %}
+                            <th class="text-center">Avg Rank</th>
+                            <th>Funnel Type</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for team in defense_data.matrix %}
+                        <tr>
+                            <td><strong>{{ team.team }}</strong></td>
+                            {% for pos in defense_data.positions %}
+                            <td class="text-center" style="background-color: 
+                                {% if team[pos] >= 25 %}#d4edda{% elif team[pos] >= 11 %}#fff3cd{% else %}#f8d7da{% endif %};">
+                                {{ team[pos] }}
+                            </td>
+                            {% endfor %}
+                            <td class="text-center"><strong>{{ team.avg_rank }}</strong></td>
+                            <td>
+                                {% if team.funnel %}
+                                <span class="badge {% if 'Pass' in team.funnel %}bg-primary{% else %}bg-success{% endif %}">
+                                    {{ team.funnel }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">Balanced</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="bi bi-palette"></i> Color Legend</h5>
+                            <ul class="mb-0">
+                                <li><span class="badge" style="background-color: #d4edda; color: #000;">Green (25-32)</span> = Good matchup (weak defense)</li>
+                                <li><span class="badge" style="background-color: #fff3cd; color: #000;">Yellow (11-24)</span> = Neutral matchup</li>
+                                <li><span class="badge" style="background-color: #f8d7da; color: #000;">Red (1-10)</span> = Tough matchup (strong defense)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="bi bi-funnel"></i> Funnel Defenses</h5>
+                            <ul class="mb-0">
+                                <li><span class="badge bg-primary">Pass Funnel</span> = Weak vs pass (target WR/TE)</li>
+                                <li><span class="badge bg-success">Run Funnel</span> = Weak vs run (target RB/QB)</li>
+                                <li><span class="text-muted">Balanced</span> = No clear weakness</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> No defense data available for this season.
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- TRENDS & INSIGHTS TAB -->
+        <div class="tab-pane fade" id="trends-insights" role="tabpanel" aria-labelledby="trends-tab">
+            <div class="row">
+                <!-- Hot Players Section -->
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-danger text-white">
+                            <h5 class="mb-0"><i class="bi bi-fire"></i> Hot Players</h5>
+                            <small>Recent performance exceeding season average by 5%+</small>
+                        </div>
+                        <div class="card-body p-0">
+                            {% if trends_data and trends_data.hot_players %}
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Player</th>
+                                            <th>Pos</th>
+                                            <th class="text-center">Recent</th>
+                                            <th class="text-center">Season</th>
+                                            <th class="text-center">Diff</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for player in trends_data.hot_players %}
+                                        <tr>
+                                            <td><strong>{{ player.player }}</strong></td>
+                                            <td><span class="badge bg-secondary">{{ player.position }}</span></td>
+                                            <td class="text-center">{{ player.recent_rate }}%</td>
+                                            <td class="text-center">{{ player.season_rate }}%</td>
+                                            <td class="text-center">
+                                                <span class="badge bg-danger">+{{ player.diff }}%</span>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="p-3 text-center text-muted">
+                                No hot players detected
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Weekly First TD Scorers -->
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="bi bi-calendar-week"></i> First TD Scorers by Week</h5>
+                            <small>Complete history of first touchdown scorers</small>
+                        </div>
+                        <div class="card-body p-0">
+                            {% if trends_data and trends_data.weekly_scorers %}
+                            <div style="max-height: 500px; overflow-y: auto;">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead class="table-light sticky-top">
+                                        <tr>
+                                            <th>Week</th>
+                                            <th>Player</th>
+                                            <th>Pos</th>
+                                            <th>Team</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for scorer in trends_data.weekly_scorers %}
+                                        <tr>
+                                            <td><strong>{{ scorer.week }}</strong></td>
+                                            <td>{{ scorer.player }}</td>
+                                            <td><span class="badge bg-secondary">{{ scorer.position }}</span></td>
+                                            <td>{{ scorer.team }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="p-3 text-center text-muted">
+                                No first TD data available
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="bi bi-trophy"></i> How to Use Trends</h5>
+                            <ul class="mb-0">
+                                <li><strong>Hot Players:</strong> Consider targeting players with recent surge in performance</li>
+                                <li><strong>Weekly History:</strong> Identify patterns (position trends, team tendencies, week-specific performers)</li>
+                                <li><strong>Sample Size:</strong> Hot players require minimum 3 recent games to qualify</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    {% endif %}
+</div>
+
+<!-- Player Search and Table Sorting JavaScript -->
+<script>
+function showPlayerGames(row) {
+    // Extract player name (removing icon)
+    const playerCell = row.cells[0];
+    const playerName = playerCell.textContent.replace(/^\s*\S+\s+/, '').trim(); // Remove icon
+    const position = row.cells[1].textContent.trim();
+    const team = row.cells[2].textContent.trim();
+    const allGames = JSON.parse(row.getAttribute('data-ftd-history'));
+    const standaloneGames = JSON.parse(row.getAttribute('data-ftd-history-standalone'));
+    
+    let contentHtml = `
+        <div class="mb-3">
+            <h5>${playerName}</h5>
+            <p class="text-muted mb-0">
+                <span class="badge bg-secondary">${position}</span> 
+                <span class="ms-2">${team}</span>
+            </p>
+        </div>
+    `;
+    
+    if (allGames && allGames.length > 0) {
+        contentHtml += `
+            <h6 class="mb-3">First TD Games This Season (${allGames.length})</h6>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead>
+                        <tr>
+                            <th>Week</th>
+                            <th>Opponent</th>
+                            <th>Location</th>
+                            <th>Date</th>
+                            <th>Game Type</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        allGames.forEach(game => {
+            const gameType = game.is_standalone ? 
+                '<span class="badge bg-success">Standalone</span>' : 
+                '<span class="badge bg-info">Mainslate</span>';
+            const location = game.location === 'H' ? 'Home' : 'Away';
+            
+            contentHtml += `
+                <tr>
+                    <td><strong>${game.week}</strong></td>
+                    <td>${game.opponent}</td>
+                    <td>${location}</td>
+                    <td>${game.date || 'N/A'}</td>
+                    <td>${gameType}</td>
+                </tr>
+            `;
+        });
+        
+        contentHtml += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        // Summary stats
+        const standaloneCount = standaloneGames.length;
+        const mainslateCount = allGames.length - standaloneCount;
+        
+        contentHtml += `
+            <div class="row mt-3">
+                <div class="col-6">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h6 class="card-title">Standalone Games</h6>
+                            <h3 class="mb-0">${standaloneCount}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h6 class="card-title">Mainslate Games</h6>
+                            <h3 class="mb-0">${mainslateCount}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    } else {
+        contentHtml += '<p class="text-muted">No first TD games this season.</p>';
+    }
+    
+    document.getElementById('playerGamesContent').innerHTML = contentHtml;
+    
+    const modal = new bootstrap.Modal(document.getElementById('playerGamesModal'));
+    modal.show();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Player Search and Game Type Filter
+    const searchInput = document.getElementById('playerSearch');
+    const playerTable = document.getElementById('playerTable');
+    const gameTypeFilter = document.getElementById('gameTypeFilter');
+    const timeRangeFilter = document.getElementById('timeRangeFilter');
+    const positionFilter = document.getElementById('positionFilter');
+    const teamFilter = document.getElementById('teamFilter');
+    
+    // Combined filter function
+    function applyFilters() {
+        const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+        const selectedPosition = positionFilter ? positionFilter.value : 'all';
+        const selectedTeam = teamFilter ? teamFilter.value : 'all';
+        const rows = playerTable.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+        
+        let visibleCount = 0;
+        
+        for (let row of rows) {
+            const playerName = row.getElementsByTagName('td')[0].textContent.toLowerCase();
+            const position = row.getElementsByTagName('td')[1].textContent.trim();
+            const team = row.getElementsByTagName('td')[2].textContent.trim();
+            
+            let showRow = true;
+            
+            // Apply search filter
+            if (searchTerm && !playerName.includes(searchTerm)) {
+                showRow = false;
+            }
+            
+            // Apply position filter
+            if (selectedPosition !== 'all' && position !== selectedPosition) {
+                showRow = false;
+            }
+            
+            // Apply team filter
+            if (selectedTeam !== 'all' && team !== selectedTeam) {
+                showRow = false;
+            }
+            
+            if (showRow) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        }
+        
+        // Update player count
+        const playerCountEl = document.getElementById('playerCount');
+        if (playerCountEl) {
+            playerCountEl.textContent = visibleCount;
+        }
+    }
+    
+    if (searchInput && playerTable) {
+        searchInput.addEventListener('keyup', applyFilters);
+    }
+    
+    if (positionFilter) {
+        positionFilter.addEventListener('change', applyFilters);
+    }
+    
+    if (teamFilter) {
+        teamFilter.addEventListener('change', applyFilters);
+    }
+    
+    // Time Range Filter (Last 5 vs Full Season)
+    if (timeRangeFilter && playerTable) {
+        const formHeader = document.getElementById('formHeader');
+        
+        timeRangeFilter.addEventListener('change', function() {
+            const timeRange = this.value;
+            const rows = playerTable.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+            
+            // Update header
+            if (formHeader) {
+                formHeader.textContent = timeRange === 'recent' ? 'Form (L5)' : 'Form (Season)';
+            }
+            
+            for (let row of rows) {
+                const recentFormCell = row.querySelector('.recent-form-cell');
+                
+                if (timeRange === 'recent') {
+                    // Show last 5 games
+                    const recentForm = row.getAttribute('data-recent-form');
+                    recentFormCell.textContent = recentForm;
+                } else {
+                    // Show full season
+                    const fullForm = row.getAttribute('data-full-form');
+                    recentFormCell.textContent = fullForm;
+                }
+            }
+        });
+    }
+    
+    // Game Type Filter
+    if (gameTypeFilter && playerTable) {
+        console.log('Game type filter initialized');
+        
+        gameTypeFilter.addEventListener('change', function() {
+            const filterValue = this.value;
+            console.log('Filter changed to:', filterValue);
+            
+            const rows = playerTable.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+            console.log('Found', rows.length, 'rows');
+            
+            // Get active filters
+            const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+            const selectedPosition = positionFilter ? positionFilter.value : 'all';
+            const selectedTeam = teamFilter ? teamFilter.value : 'all';
+            
+            let visibleCount = 0;
+            
+            for (let row of rows) {
+                const seasonTdsCell = row.querySelector('.season-tds-cell');
+                const ftdHistoryCell = row.querySelector('.ftd-history-cell');
+                const playerName = row.cells[0].textContent.trim();
+                const position = row.getElementsByTagName('td')[1].textContent.trim();
+                const team = row.getElementsByTagName('td')[2].textContent.trim();
+                
+                let showRow = true;
+                
+                // Apply search filter
+                if (searchTerm && !playerName.toLowerCase().includes(searchTerm)) {
+                    showRow = false;
+                }
+                
+                // Apply position filter
+                if (selectedPosition !== 'all' && position !== selectedPosition) {
+                    showRow = false;
+                }
+                
+                // Apply team filter
+                if (selectedTeam !== 'all' && team !== selectedTeam) {
+                    showRow = false;
+                }
+                
+                if (filterValue === 'standalone') {
+                    // Show standalone data
+                    const standaloneTds = parseInt(row.getAttribute('data-standalone-tds'));
+                    const standaloneHistory = JSON.parse(row.getAttribute('data-ftd-history-standalone'));
+                    
+                    // Debug logging for James Cook
+                    if (playerName === 'James Cook') {
+                        console.log('James Cook data:');
+                        console.log('  data-standalone-tds attribute:', row.getAttribute('data-standalone-tds'));
+                        console.log('  Parsed standaloneTds:', standaloneTds);
+                        console.log('  Standalone History:', standaloneHistory);
+                        console.log('  Current cell HTML:', seasonTdsCell.innerHTML);
+                    }
+                    
+                    // Apply game type filter
+                    if (standaloneTds === 0) {
+                        showRow = false;
+                    }
+                    
+                    if (showRow) {
+                        row.style.display = '';
+                        visibleCount++;
+                        
+                        // Update Season FTDs count
+                        seasonTdsCell.innerHTML = '<strong>' + standaloneTds + '</strong>';
+                        
+                        if (playerName === 'James Cook') {
+                            console.log('  Updated cell HTML:', seasonTdsCell.innerHTML);
+                        }
+                        
+                        // Update FTD History
+                        if (standaloneHistory && standaloneHistory.length > 0) {
+                            let historyHtml = '<small>';
+                            for (let i = 0; i < Math.min(3, standaloneHistory.length); i++) {
+                                const game = standaloneHistory[i];
+                                const badgeClass = game.is_standalone ? 'bg-success' : 'bg-info';
+                                historyHtml += '<span class="badge ' + badgeClass + ' me-1">W' + game.week + ' vs ' + game.opponent + ' (' + game.location + ')</span>';
+                            }
+                            if (standaloneHistory.length > 3) {
+                                historyHtml += '<span class="text-muted">+' + (standaloneHistory.length - 3) + ' more</span>';
+                            }
+                            historyHtml += '</small>';
+                            ftdHistoryCell.innerHTML = historyHtml;
+                        } else {
+                            ftdHistoryCell.innerHTML = '<small class="text-muted">None in standalone games</small>';
+                        }
+                    } else {
+                        row.style.display = 'none';
+                    }
+                } else {
+                    // Show all games data
+                    const seasonTds = row.getAttribute('data-season-tds');
+                    const allHistory = JSON.parse(row.getAttribute('data-ftd-history'));
+                    
+                    if (showRow) {
+                        row.style.display = '';
+                        visibleCount++;
+                        
+                        // Update Season FTDs count
+                        seasonTdsCell.innerHTML = '<strong>' + seasonTds + '</strong>';
+                        
+                        // Update FTD History
+                        if (allHistory && allHistory.length > 0) {
+                            let historyHtml = '<small>';
+                            for (let i = 0; i < Math.min(3, allHistory.length); i++) {
+                                const game = allHistory[i];
+                                const badgeClass = game.is_standalone ? 'bg-success' : 'bg-info';
+                                historyHtml += '<span class="badge ' + badgeClass + ' me-1">W' + game.week + ' vs ' + game.opponent + ' (' + game.location + ')</span>';
+                            }
+                            if (allHistory.length > 3) {
+                                historyHtml += '<span class="text-muted">+' + (allHistory.length - 3) + ' more</span>';
+                            }
+                            historyHtml += '</small>';
+                            ftdHistoryCell.innerHTML = historyHtml;
+                        } else {
+                            ftdHistoryCell.innerHTML = '<small class="text-muted">None this season</small>';
+                        }
+                    } else {
+                        row.style.display = 'none';
+                    }
+                }
+            }
+            
+            // Update player count
+            const playerCountEl = document.getElementById('playerCount');
+            if (playerCountEl) {
+                playerCountEl.textContent = visibleCount;
+            }
+        });
+    }
+    
+    // Table Sorting Function
+    function makeSortable(table) {
+        const headers = table.querySelectorAll('th');
+        const tbody = table.querySelector('tbody');
+        
+        headers.forEach((header, index) => {
+            // Skip headers without sortable data or action columns
+            if (header.textContent.trim() === '' || header.textContent.includes('History')) {
+                return;
+            }
+            
+            header.style.cursor = 'pointer';
+            header.style.userSelect = 'none';
+            header.title = 'Click to sort';
+            
+            // Add sort indicator
+            const originalText = header.innerHTML;
+            header.setAttribute('data-original-text', originalText);
+            
+            let sortDirection = 'asc';
+            
+            header.addEventListener('click', function() {
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                
+                // Determine if numeric or text sort
+                const firstCell = rows[0]?.cells[index];
+                let isNumeric = false;
+                
+                if (firstCell) {
+                    const cellText = firstCell.textContent.trim();
+                    const badge = firstCell.querySelector('.badge');
+                    const actualText = badge ? badge.textContent.trim() : cellText;
+                    
+                    // Check if it's a number (remove % sign if present)
+                    const numValue = parseFloat(actualText.replace('%', ''));
+                    isNumeric = !isNaN(numValue) && actualText !== '';
+                }
+                
+                // Sort rows
+                rows.sort((a, b) => {
+                    const aCell = a.cells[index];
+                    const bCell = b.cells[index];
+                    
+                    let aVal = aCell.textContent.trim();
+                    let bVal = bCell.textContent.trim();
+                    
+                    // Extract from badges if present
+                    const aBadge = aCell.querySelector('.badge');
+                    const bBadge = bCell.querySelector('.badge');
+                    if (aBadge) aVal = aBadge.textContent.trim();
+                    if (bBadge) bVal = bBadge.textContent.trim();
+                    
+                    if (isNumeric) {
+                        aVal = parseFloat(aVal.replace('%', '').replace('+', '')) || 0;
+                        bVal = parseFloat(bVal.replace('%', '').replace('+', '')) || 0;
+                        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+                    } else {
+                        return sortDirection === 'asc' 
+                            ? aVal.localeCompare(bVal) 
+                            : bVal.localeCompare(aVal);
+                    }
+                });
+                
+                // Clear all other headers' sort indicators
+                headers.forEach(h => {
+                    const orig = h.getAttribute('data-original-text');
+                    if (orig) {
+                        h.innerHTML = orig;
+                    }
+                });
+                
+                // Update sort direction and indicator
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+                const arrow = sortDirection === 'asc' ? ' ▼' : ' ▲';
+                header.innerHTML = originalText + arrow;
+                
+                // Re-append sorted rows
+                rows.forEach(row => tbody.appendChild(row));
+            });
+        });
+    }
+    
+    // Make all tables sortable
+    const playerTableEl = document.getElementById('playerTable');
+    const teamTableEl = document.querySelector('#team-analysis table');
+    const defenseTableEl = document.querySelector('#defense-analysis table');
+    const hotPlayersTable = document.querySelector('#trends-insights table');
+    
+    if (playerTableEl) makeSortable(playerTableEl);
+    if (teamTableEl) makeSortable(teamTableEl);
+    if (defenseTableEl) makeSortable(defenseTableEl);
+    if (hotPlayersTable) makeSortable(hotPlayersTable);
+});
+</script>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
