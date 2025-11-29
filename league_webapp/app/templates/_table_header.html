@@ -1,0 +1,10 @@
+{# Jinja macro for table headers, e.g. standings, picks, games #}
+{% macro table_header(columns) %}
+<thead class="table-dark">
+    <tr>
+    {% for col in columns %}
+        <th>{{ col }}</th>
+    {% endfor %}
+    </tr>
+</thead>
+{% endmacro %}

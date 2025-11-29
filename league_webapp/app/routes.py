@@ -110,7 +110,11 @@ def index(season=None):
         season = 2025
     
     # Get all available seasons
-    available_seasons = db.session.query(Game.season).distinct().order_by(Game.season.desc()).all()
+    # Cache available seasons for 5 minutes to reduce DB load
+    @cache.memoize(timeout=300)
+    def get_available_seasons():
+        return db.session.query(Game.season).distinct().order_by(Game.season.desc()).all()
+    available_seasons = get_available_seasons()
     available_seasons = [s[0] for s in available_seasons]
     
     # Optimized query: calculate all stats in one database query per pick type
@@ -188,13 +192,13 @@ def index(season=None):
         league_total_bankroll=league_total_bankroll
     )
 
-@bp.route('/week/<int:week_num>')
+@bp.route('/week/<int:week_num>', defaults={'season': None})
 @bp.route('/season/<int:season>/week/<int:week_num>')
-def week_view(week_num, season=None):
+def week_view(week_num, season):
     """Display all games and picks for a specific week"""
     # Default to current season if not specified
-    if season is None:
-        season = 2025
+    if not season:
+        season = get_current_season()
     
     # Get all games for this week and season with picks eagerly loaded (avoid N+1 queries)
     games = Game.query.options(joinedload(Game.picks).joinedload(Pick.user)).filter_by(
@@ -356,13 +360,13 @@ def grade_all_weeks():
     # Redirect back to all-picks page if that's where we came from
     return redirect(request.referrer or url_for('main.index'))
 
-@bp.route('/user/<int:user_id>')
+@bp.route('/user/<int:user_id>', defaults={'season': None})
 @bp.route('/season/<int:season>/user/<int:user_id>')
-def user_detail(user_id, season=None):
+def user_detail(user_id, season):
     """Display all picks for a specific user"""
     # Default to current season if not specified
-    if season is None:
-        season = 2025
+    if not season:
+        season = get_current_season()
     
     user = User.query.get_or_404(user_id)
     
@@ -620,16 +624,16 @@ def delete_pick(pick_id):
     
     return redirect(url_for('main.week_view', week_num=week_num, season=season))
 
-@bp.route('/best-bets')
+@bp.route('/best-bets', defaults={'season': None})
 @bp.route('/best-bets/<int:season>')
-def best_bets_scanner(season=None):
+def best_bets_scanner(season):
     """
     Best Bets Scanner - Find positive EV first touchdown bets for the current week.
     Public route available to all users.
     """
     # Default to current season
-    if season is None:
-        season = 2025
+    if not season:
+        season = get_current_season()
     
     # Check if API key is configured
     if not API_KEY:
@@ -810,17 +814,21 @@ def best_bets_scanner(season=None):
                              week=None,
                              last_updated=None)
 
-@bp.route('/analysis')
+@bp.route('/analysis', defaults={'season': None})
 @bp.route('/analysis/<int:season>')
-def analysis_page(season=None):
+def analysis_page(season):
     """
     Analysis Page - Statistical research tools for First TD betting.
     Provides player research, team analysis, defense matchups, and trends.
     Public route available to all users.
     """
     # Default to current season
-    if season is None:
-        season = 2025
+    if not season:
+        season = get_current_season()
+    # Helper function for current season
+    def get_current_season():
+        # Could be dynamic, for now default to 2025
+        return 2025
     
     try:
         # Load all NFL statistics (use fresh data if refresh param is set)

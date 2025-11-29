@@ -30,10 +30,13 @@ def create_app(config_class=Config):
         return User.query.get(int(user_id))
     
     # Register blueprints
-    from . import routes
-    app.register_blueprint(routes.bp)
-    print('Blueprint routes.bp registered!')
-    
+    from .blueprints.main import main_bp
+    from .blueprints.admin import admin_bp
+    from .blueprints.api import api_bp
+    app.register_blueprint(main_bp)
+    app.register_blueprint(admin_bp, url_prefix='/admin')
+    app.register_blueprint(api_bp, url_prefix='/api')
+    print('Blueprints registered!')
     from . import auth
     app.register_blueprint(auth.auth_bp)
     

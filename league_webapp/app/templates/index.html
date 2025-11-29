@@ -132,17 +132,8 @@
         {% if standings %}
         <div class="table-responsive">
             <table class="table table-striped table-hover align-middle">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Rank</th>
-                        <th>Player</th>
-                        <th>FTD Record</th>
-                        <th>FTD Bankroll</th>
-                        <th>ATTS Record</th>
-                        <th>ATTS Bankroll</th>
-                        <th>Total Picks</th>
-                    </tr>
-                </thead>
+                {% import '_table_header.html' as th %}
+                {{ th.table_header(['Rank','Player','FTD Record','FTD Bankroll','ATTS Record','ATTS Bankroll','Total Picks']) }}
                 <tbody>
                     {% for s in standings %}
                     <tr>
