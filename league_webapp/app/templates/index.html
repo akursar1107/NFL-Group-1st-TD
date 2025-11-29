@@ -7,10 +7,14 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-    <nav class="navbar navbar-dark bg-dark">
-        <div class="container">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
             <a class="navbar-brand mb-0 h1" href="/">🏈 NFL First TD League</a>
-            <div class="d-flex gap-2">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="d-flex flex-wrap gap-2 w-100 justify-content-end">
                 <!-- Navigation Links -->
                 <a href="/" class="btn btn-sm btn-outline-light">Standings</a>
                 <a href="/best-bets" class="btn btn-sm btn-outline-light">💰 Best Bets</a>
@@ -110,17 +114,15 @@
         {% endwith %}
 
         <!-- Header with Admin Actions -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2>{{ season }} Season Standings</h2>
-            <div class="btn-group" role="group">
-                <a href="/admin/picks/new" class="btn btn-primary">
-                    ➕ Add Pick
-                </a>
-                <a href="/admin/match-review" class="btn btn-warning">
-                    🔍 Review Matches
-                </a>
-                <form method="POST" action="/admin/grade-current-week" style="display: inline;">
-                    <button type="submit" class="btn btn-success" onclick="return confirm('Grade the current week? This will process all pending picks.');">
+        <div class="row mb-3">
+            <div class="col-12 col-md-6 mb-2 mb-md-0">
+                <h2>{{ season }} Season Standings</h2>
+            </div>
+            <div class="col-12 col-md-6 d-flex flex-wrap gap-2 justify-content-md-end">
+                <a href="/admin/picks/new" class="btn btn-primary flex-grow-1 flex-md-grow-0">➕ Add Pick</a>
+                <a href="/admin/match-review" class="btn btn-warning flex-grow-1 flex-md-grow-0">🔍 Review Matches</a>
+                <form method="POST" action="/admin/grade-current-week" class="flex-grow-1 flex-md-grow-0" style="display: inline;">
+                    <button type="submit" class="btn btn-success w-100 w-md-auto" onclick="return confirm('Grade the current week? This will process all pending picks.');">
                         ✓ Grade Current Week
                     </button>
                 </form>
@@ -129,7 +131,7 @@
         
         {% if standings %}
         <div class="table-responsive">
-            <table class="table table-striped table-hover">
+            <table class="table table-striped table-hover align-middle">
                 <thead class="table-dark">
                     <tr>
                         <th>Rank</th>
@@ -187,17 +189,17 @@
         
         <div class="mt-4">
             <h4>Quick Stats</h4>
-            <div class="row">
-                <div class="col-md-3">
-                    <div class="card">
+            <div class="row g-3">
+                <div class="col-12 col-sm-6 col-md-3">
+                    <div class="card h-100">
                         <div class="card-body text-center">
                             <h5 class="card-title">{{ standings|length }}</h5>
                             <p class="card-text text-muted">Players</p>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card">
+                <div class="col-12 col-sm-6 col-md-3">
+                    <div class="card h-100">
                         <div class="card-body text-center">
                             <h5 class="card-title">{{ standings|sum(attribute='ftd_wins') + standings|sum(attribute='ftd_losses') + standings|sum(attribute='ftd_pending') }}</h5>
                             <p class="card-text text-muted">FTD Picks</p>

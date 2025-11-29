@@ -2,18 +2,18 @@
 {% block content %}
 <div class="container mt-4">
     <h2 class="mb-4">Admin Dashboard</h2>
-    <div class="list-group">
+    <div class="list-group mb-3">
         <a href="{{ url_for('main.force_reload_data') }}" class="list-group-item list-group-item-action">
             <strong>Force Reload NFL Data</strong><br>
             Reload all NFL data from the source, ignoring cache.
         </a>
-        <form action="{{ url_for('main.grade_current_week') }}" method="post" style="margin-bottom:0;">
+        <form action="{{ url_for('main.grade_current_week') }}" method="post" class="mb-2">
             <button type="submit" class="list-group-item list-group-item-action">
                 <strong>Grade Current Week</strong><br>
                 Grade all pending picks for the current NFL week.
             </button>
         </form>
-        <form action="{{ url_for('main.grade_all_weeks') }}" method="post" style="margin-bottom:0;">
+        <form action="{{ url_for('main.grade_all_weeks') }}" method="post" class="mb-2">
             <button type="submit" class="list-group-item list-group-item-action">
                 <strong>Grade All Weeks</strong><br>
                 Grade all picks for the season in one click.
