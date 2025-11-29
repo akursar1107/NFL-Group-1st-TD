@@ -1,6 +1,4 @@
-from flask import Blueprint
 
-main_bp = Blueprint('main', __name__)
 
-# Import and register main routes here
-from ..routes import *
+# Import the blueprint defined in routes.py
+from ..routes import bp as main_bp

@@ -822,13 +822,13 @@ def analysis_page(season):
     Provides player research, team analysis, defense matchups, and trends.
     Public route available to all users.
     """
-    # Default to current season
-    if not season:
-        season = get_current_season()
     # Helper function for current season
     def get_current_season():
         # Could be dynamic, for now default to 2025
         return 2025
+    # Default to current season
+    if not season:
+        season = get_current_season()
     
     try:
         # Load all NFL statistics (use fresh data if refresh param is set)
