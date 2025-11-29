@@ -1,7 +1,9 @@
 from datetime import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import UserMixin
 from . import db
 
-class User(db.Model):
+class User(UserMixin, db.Model):
     """League participant"""
     __tablename__ = 'users'
     
@@ -12,9 +14,28 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
     
+    # Authentication fields
+    password_hash = db.Column(db.String(255))
+    is_admin = db.Column(db.Boolean, default=False)
+    last_login = db.Column(db.DateTime)
+    
     # Relationships
     picks = db.relationship('Pick', backref='user', lazy=True, cascade='all, delete-orphan')
     bankroll_history = db.relationship('BankrollHistory', backref='user', lazy=True, cascade='all, delete-orphan')
+    
+    def set_password(self, password):
+        """Hash and set password"""
+        self.password_hash = generate_password_hash(password)
+    
+    def check_password(self, password):
+        """Check if provided password matches hash"""
+        if not self.password_hash:
+            return False
+        return check_password_hash(self.password_hash, password)
+    
+    def is_administrator(self):
+        """Check if user has admin privileges"""
+        return self.is_admin
     
     def __repr__(self):
         return f'<User {self.username}>'

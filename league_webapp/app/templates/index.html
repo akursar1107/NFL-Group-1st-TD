@@ -16,6 +16,26 @@
                 <a href="/best-bets" class="btn btn-sm btn-outline-light">💰 Best Bets</a>
                 <a href="/analysis" class="btn btn-sm btn-outline-light">📊 Analysis</a>
                 
+                <!-- Admin Menu (only visible to admins) -->
+                {% if current_user.is_authenticated and current_user.is_administrator() %}
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-warning dropdown-toggle" data-bs-toggle="dropdown">
+                        🔧 Admin
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><h6 class="dropdown-header">Grading</h6></li>
+                        <li><a class="dropdown-item" href="#" onclick="document.getElementById('gradeCurrentWeekForm').submit(); return false;">Grade Current Week</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><h6 class="dropdown-header">Picks Management</h6></li>
+                        <li><a class="dropdown-item" href="/admin/picks/new">➕ New Pick</a></li>
+                        <li><a class="dropdown-item" href="/admin/all-picks">📋 All Picks</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><h6 class="dropdown-header">Data Quality</h6></li>
+                        <li><a class="dropdown-item" href="/admin/match-review">🔍 Match Review</a></li>
+                    </ul>
+                </div>
+                {% endif %}
+                
                 <!-- Season Selector -->
                 {% if available_seasons %}
                 <div class="btn-group" role="group">
@@ -41,9 +61,32 @@
                         {% endfor %}
                     </ul>
                 </div>
+                
+                <!-- User Menu -->
+                {% if current_user.is_authenticated %}
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-outline-info dropdown-toggle" data-bs-toggle="dropdown">
+                        👤 {{ current_user.display_name }}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="/change-password">🔑 Change Password</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="/logout">🚪 Logout</a></li>
+                    </ul>
+                </div>
+                {% else %}
+                <a href="/login" class="btn btn-sm btn-outline-success">Login</a>
+                {% endif %}
             </div>
         </div>
     </nav>
+    
+    <!-- Hidden form for grade current week (POST request) -->
+    {% if current_user.is_authenticated and current_user.is_administrator() %}
+    <form id="gradeCurrentWeekForm" method="POST" action="/admin/grade-current-week" style="display: none;">
+        <input type="hidden" name="season" value="{{ season }}">
+    </form>
+    {% endif %}
 
     <div class="container mt-4">
         <!-- Flash Messages -->

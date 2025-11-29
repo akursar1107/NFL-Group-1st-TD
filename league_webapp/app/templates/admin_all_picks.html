@@ -46,7 +46,24 @@
             <a class="navbar-brand mb-0 h1" href="/">🏈 NFL First TD League</a>
             <div class="d-flex gap-2">
                 <a href="/" class="btn btn-sm btn-outline-light">Standings</a>
-                <a href="/admin/picks/new" class="btn btn-sm btn-success">➕ Add Pick</a>
+                
+                <!-- Admin Menu -->
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-warning dropdown-toggle" data-bs-toggle="dropdown">
+                        🔧 Admin
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><h6 class="dropdown-header">Grading</h6></li>
+                        <li><a class="dropdown-item" href="#" onclick="document.getElementById('gradeCurrentWeekForm').submit(); return false;">Grade Current Week</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><h6 class="dropdown-header">Picks Management</h6></li>
+                        <li><a class="dropdown-item" href="/admin/picks/new">➕ New Pick</a></li>
+                        <li><a class="dropdown-item active" href="/admin/all-picks">📋 All Picks</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><h6 class="dropdown-header">Data Quality</h6></li>
+                        <li><a class="dropdown-item" href="/admin/match-review">🔍 Match Review</a></li>
+                    </ul>
+                </div>
                 
                 <!-- Season Selector -->
                 <div class="btn-group" role="group">
@@ -59,6 +76,26 @@
                         {% endfor %}
                     </ul>
                 </div>
+                
+                <!-- User Menu -->
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-outline-info dropdown-toggle" data-bs-toggle="dropdown">
+                        👤 {{ current_user.display_name }}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="/change-password">🔑 Change Password</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="/logout">🚪 Logout</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Hidden form for grade current week -->
+    <form id="gradeCurrentWeekForm" method="POST" action="/admin/grade-current-week" style="display: none;">
+        <input type="hidden" name="season" value="{{ season }}">
+    </form>
             </div>
         </div>
     </nav>

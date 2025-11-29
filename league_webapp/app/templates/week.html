@@ -32,10 +32,58 @@
                 <a href="/" class="btn btn-sm btn-outline-light">Standings</a>
                 <a href="/best-bets" class="btn btn-sm btn-outline-light">💰 Best Bets</a>
                 <a href="/analysis" class="btn btn-sm btn-outline-light">📊 Analysis</a>
+                
+                <!-- Admin Menu (only visible to admins) -->
+                {% if current_user.is_authenticated and current_user.is_administrator() %}
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-warning dropdown-toggle" data-bs-toggle="dropdown">
+                        🔧 Admin
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><h6 class="dropdown-header">Grading</h6></li>
+                        <li><a class="dropdown-item" href="#" onclick="document.getElementById('gradeCurrentWeekForm').submit(); return false;">Grade Current Week</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="document.getElementById('gradeThisWeekForm').submit(); return false;">Grade Week {{ week }}</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><h6 class="dropdown-header">Picks Management</h6></li>
+                        <li><a class="dropdown-item" href="/admin/picks/new">➕ New Pick</a></li>
+                        <li><a class="dropdown-item" href="/admin/all-picks">📋 All Picks</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><h6 class="dropdown-header">Data Quality</h6></li>
+                        <li><a class="dropdown-item" href="/admin/match-review">🔍 Match Review</a></li>
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <!-- User Menu -->
+                {% if current_user.is_authenticated %}
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-outline-info dropdown-toggle" data-bs-toggle="dropdown">
+                        👤 {{ current_user.display_name }}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="/change-password">🔑 Change Password</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="/logout">🚪 Logout</a></li>
+                    </ul>
+                </div>
+                {% else %}
+                <a href="/login" class="btn btn-sm btn-outline-success">Login</a>
+                {% endif %}
+                
                 <span class="navbar-text text-white ms-2">{{ season|default(2025, true) }} Season - Week {{ week }}</span>
             </div>
         </div>
     </nav>
+    
+    <!-- Hidden forms for grading (POST requests) -->
+    {% if current_user.is_authenticated and current_user.is_administrator() %}
+    <form id="gradeCurrentWeekForm" method="POST" action="/admin/grade-current-week" style="display: none;">
+        <input type="hidden" name="season" value="{{ season|default(2025, true) }}">
+    </form>
+    <form id="gradeThisWeekForm" method="POST" action="/admin/grade/{{ week }}" style="display: none;">
+        <input type="hidden" name="season" value="{{ season|default(2025, true) }}">
+    </form>
+    {% endif %}
 
     <div class="container mt-4">
         <!-- Flash Messages -->
@@ -73,14 +121,6 @@
                 <a href="/season/{{ season|default(2025, true) }}/week/{{ week + 1 }}" class="btn btn-outline-primary">Week {{ week + 1 }} →</a>
                 {% endif %}
             </div>
-            
-            <!-- Admin Grading Button -->
-            <form method="POST" action="/admin/grade/{{ week }}" style="display: inline;">
-                <input type="hidden" name="season" value="{{ season|default(2025, true) }}">
-                <button type="submit" class="btn btn-warning" onclick="return confirm('Grade all picks for Week {{ week }}? This will update results based on actual NFL data.')">
-                    🔄 Grade Week {{ week }}
-                </button>
-            </form>
         </div>
 
         <h2>Week {{ week }} Games</h2>

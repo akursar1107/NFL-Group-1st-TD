@@ -1,6 +1,8 @@
 from flask import Blueprint, render_template, jsonify, redirect, url_for, flash, request
+from flask_login import login_required
 from .models import User, Game, Pick, MatchDecision
 from . import db, cache
+from .decorators import admin_required
 from sqlalchemy import func, case
 from sqlalchemy.orm import joinedload
 from nfl_core.stats import (
@@ -191,6 +193,8 @@ def week_view(week_num, season=None):
                          available_weeks=available_weeks)
 
 @bp.route('/admin/grade/<int:week_num>', methods=['POST'])
+@login_required
+@admin_required
 def grade_week_route(week_num):
     """Admin route to grade a specific week"""
     # Get season from form or default to 2025
@@ -226,6 +230,8 @@ def grade_week_route(week_num):
     return redirect(url_for('main.week_view', week_num=week_num, season=season))
 
 @bp.route('/admin/grade-current-week', methods=['POST'])
+@login_required
+@admin_required
 def grade_current_week():
     """Admin route to quickly grade the current week (or most recent week with pending picks)"""
     season = 2025
@@ -273,6 +279,8 @@ def grade_current_week():
     return redirect(url_for('main.index'))
 
 @bp.route('/admin/grade-all', methods=['POST'])
+@login_required
+@admin_required
 def grade_all_weeks():
     """Admin route to grade all weeks at once"""
     # Get season from form or default to 2025
@@ -366,6 +374,8 @@ def user_detail(user_id, season=None):
                          season=season)
 
 @bp.route('/admin/picks/new', methods=['GET', 'POST'])
+@login_required
+@admin_required
 def new_pick():
     """Admin page to add new picks"""
     from flask import request
@@ -473,6 +483,8 @@ def new_pick():
                          season=season)
 
 @bp.route('/admin/picks/<int:pick_id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
 def edit_pick(pick_id):
     """Admin page to edit an existing pick"""
     from flask import request
@@ -545,6 +557,8 @@ def edit_pick(pick_id):
                          season=season)
 
 @bp.route('/admin/picks/<int:pick_id>/delete', methods=['POST'])
+@login_required
+@admin_required
 def delete_pick(pick_id):
     """Admin route to delete a pick"""
     pick = Pick.query.get_or_404(pick_id)
@@ -1232,9 +1246,10 @@ def team_history_api(season, team, week='ALL'):
 
 @bp.route('/admin/all-picks')
 @bp.route('/admin/all-picks/<int:season>')
+@login_required
+@admin_required
 def all_picks_admin(season=None):
-    """Admin page showing all picks for mass editing (ADMIN ONLY - enforcement TODO)"""
-    # TODO: Add @admin_required decorator when authentication is implemented
+    """Admin page showing all picks for mass editing"""
     
     if season is None:
         season = 2025
@@ -1376,6 +1391,8 @@ def standardize_picks(season):
         }), 500
 
 @bp.route('/api/apply-standardization', methods=['POST'])
+@login_required
+@admin_required
 def apply_standardization():
     """Apply approved standardization changes to picks"""
     try:
@@ -1440,6 +1457,8 @@ def apply_standardization():
         }), 500
 
 @bp.route('/admin/match-review')
+@login_required
+@admin_required
 def match_review():
     """Admin page to review fuzzy matches that need manual approval"""
     # Get sort parameter
@@ -1458,6 +1477,8 @@ def match_review():
                           current_sort=sort_by)
 
 @bp.route('/admin/match-review/<int:match_id>', methods=['POST'])
+@login_required
+@admin_required
 def review_match(match_id):
     """Approve or reject a specific fuzzy match"""
     decision = request.form.get('decision')  # 'approve' or 'reject'
@@ -1478,6 +1499,8 @@ def review_match(match_id):
     return redirect(url_for('main.match_review'))
 
 @bp.route('/admin/match-review/bulk-approve', methods=['POST'])
+@login_required
+@admin_required
 def bulk_approve_matches():
     """Approve all pending matches"""
     review_service = MatchReviewService()
@@ -1486,6 +1509,8 @@ def bulk_approve_matches():
     return redirect(url_for('main.match_review'))
 
 @bp.route('/admin/match-review/bulk-reject', methods=['POST'])
+@login_required
+@admin_required
 def bulk_reject_matches():
     """Reject all pending matches"""
     review_service = MatchReviewService()
@@ -1494,6 +1519,8 @@ def bulk_reject_matches():
     return redirect(url_for('main.match_review'))
 
 @bp.route('/admin/match-review/<int:match_id>/revert', methods=['POST'])
+@login_required
+@admin_required
 def revert_match(match_id):
     """Revert a manually approved/rejected match back to pending review"""
     review_service = MatchReviewService()
@@ -1502,6 +1529,8 @@ def revert_match(match_id):
     return redirect(url_for('main.match_review'))
 
 @bp.route('/admin/match-review/bulk-revert-approved', methods=['POST'])
+@login_required
+@admin_required
 def bulk_revert_approved():
     """Revert all manually approved matches back to pending review"""
     review_service = MatchReviewService()
