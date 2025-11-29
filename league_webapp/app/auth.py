@@ -15,6 +15,9 @@ auth_bp = Blueprint('auth', __name__)
 def login():
     """User login page"""
     # Redirect if already logged in
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
+    logging.debug(f"[LOGIN] current_user.is_authenticated={current_user.is_authenticated}, id={getattr(current_user, 'id', None)}")
     if current_user.is_authenticated:
         return redirect(url_for('main.index'))
     
@@ -25,20 +28,24 @@ def login():
         user = User.query.filter_by(username=form.username.data).first()
         
         if user is None or not user.check_password(form.password.data):
+            logging.debug(f"[LOGIN] Failed login for username={form.username.data}")
             flash('Invalid username or password', 'danger')
             return redirect(url_for('auth.login'))
         
         if not user.is_active:
+            logging.debug(f"[LOGIN] Inactive user attempted login: username={user.username}")
             flash('Your account has been deactivated. Please contact an administrator.', 'warning')
             return redirect(url_for('auth.login'))
         
         # Check if user needs to set initial password
         if not user.password_hash:
+            logging.debug(f"[LOGIN] User has no password set: username={user.username}")
             flash('Please set your password first.', 'info')
             return redirect(url_for('auth.set_password', user_id=user.id))
         
         # Log the user in
         login_user(user, remember=form.remember_me.data)
+        logging.debug(f"[LOGIN] Successful login: user_id={user.id}, username={user.username}, is_admin={user.is_admin}")
         
         # Update last login time
         user.last_login = datetime.utcnow()
@@ -59,6 +66,9 @@ def login():
 @login_required
 def logout():
     """User logout"""
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
+    logging.debug(f"[LOGOUT] Logging out user: id={getattr(current_user, 'id', None)}, username={getattr(current_user, 'username', None)}")
     logout_user()
     flash('You have been logged out.', 'info')
     return redirect(url_for('main.index'))

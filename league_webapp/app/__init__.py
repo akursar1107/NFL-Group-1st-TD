@@ -32,6 +32,7 @@ def create_app(config_class=Config):
     # Register blueprints
     from . import routes
     app.register_blueprint(routes.bp)
+    print('Blueprint routes.bp registered!')
     
     from . import auth
     app.register_blueprint(auth.auth_bp)

@@ -32,6 +32,14 @@
                         <li><hr class="dropdown-divider"></li>
                         <li><h6 class="dropdown-header">Data Quality</h6></li>
                         <li><a class="dropdown-item" href="/admin/match-review">🔍 Match Review</a></li>
+                        <li>
+                            <form method="POST" action="/admin/force-reload-data" style="display:inline;">
+                                <input type="hidden" name="season" value="{{ season }}">
+                                <button type="submit" class="dropdown-item text-danger" onclick="return confirm('Force reload NFL data from source? This will overwrite cached data.');">
+                                    ♻️ Force Reload Data
+                                </button>
+                            </form>
+                        </li>
                     </ul>
                 </div>
                 {% endif %}
@@ -209,6 +217,31 @@
                         <div class="card-body text-center">
                             <h5 class="card-title">{{ "%.1f"|format((standings|sum(attribute='ftd_wins') / (standings|sum(attribute='ftd_wins') + standings|sum(attribute='ftd_losses')) * 100) if (standings|sum(attribute='ftd_wins') + standings|sum(attribute='ftd_losses')) > 0 else 0) }}%</h5>
                             <p class="card-text text-muted">Win Rate</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- League Bankroll Quick Stats -->
+                <div class="col-md-3">
+                    <div class="card border-success">
+                        <div class="card-body text-center">
+                            <h5 class="card-title text-success">{{ "%.2f"|format(league_total_bankroll) }}u</h5>
+                            <p class="card-text text-muted">League Total Bankroll</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-primary">
+                        <div class="card-body text-center">
+                            <h5 class="card-title text-primary">{{ "%.2f"|format(league_ftd_bankroll) }}u</h5>
+                            <p class="card-text text-muted">League FTD Bankroll</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-warning">
+                        <div class="card-body text-center">
+                            <h5 class="card-title text-warning">{{ "%.2f"|format(league_atts_bankroll) }}u</h5>
+                            <p class="card-text text-muted">League ATTS Bankroll</p>
                         </div>
                     </div>
                 </div>

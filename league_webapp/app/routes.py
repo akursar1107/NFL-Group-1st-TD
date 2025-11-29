@@ -1,3 +1,4 @@
+
 from flask import Blueprint, render_template, jsonify, redirect, url_for, flash, request
 from flask_login import login_required
 from .models import User, Game, Pick, MatchDecision
@@ -26,6 +27,34 @@ from .services.match_review_service import MatchReviewService
 import polars as pl
 
 bp = Blueprint('main', __name__)
+
+@bp.route('/admin/', methods=['GET'])
+@login_required
+@admin_required
+def admin_dashboard():
+    """Admin dashboard page listing all admin tools and options."""
+    return render_template('admin_dashboard.html')
+
+@bp.route('/admin/test-route', methods=['GET'])
+def admin_test_route():
+    return 'Admin test route is working!'
+
+@bp.route('/admin/force-reload-data', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def force_reload_data():
+    """Admin route to force reload NFL data from source (ignoring cache) for current season."""
+    if request.method == 'GET':
+        # Show a simple confirmation page for manual testing
+        return render_template('admin/force_reload_confirm.html')
+    season = request.form.get('season', 2025)
+    try:
+        # Force reload data (ignore cache)
+        load_data_with_cache_web(int(season), use_cache=False)
+        flash(f"NFL data for {season} reloaded from source.", "success")
+    except Exception as e:
+        flash(f"Error reloading NFL data: {str(e)}", "danger")
+    return redirect(url_for('main.index', season=season))
 
 # Shared helper function for loading NFL statistics
 @cache.memoize(timeout=300)  # Cache for 5 minutes
@@ -143,11 +172,21 @@ def index(season=None):
     
     # Sort by FTD bankroll (descending)
     standings.sort(key=lambda x: x['ftd_bankroll'], reverse=True)
-    
-    return render_template('index.html', 
-                         standings=standings, 
-                         season=season, 
-                         available_seasons=available_seasons)
+
+    # Calculate league-wide bankroll stats
+    league_ftd_bankroll = sum(s['ftd_bankroll'] for s in standings)
+    league_atts_bankroll = sum(s['atts_bankroll'] for s in standings)
+    league_total_bankroll = league_ftd_bankroll + league_atts_bankroll
+
+    return render_template(
+        'index.html',
+        standings=standings,
+        season=season,
+        available_seasons=available_seasons,
+        league_ftd_bankroll=league_ftd_bankroll,
+        league_atts_bankroll=league_atts_bankroll,
+        league_total_bankroll=league_total_bankroll
+    )
 
 @bp.route('/week/<int:week_num>')
 @bp.route('/season/<int:season>/week/<int:week_num>')
