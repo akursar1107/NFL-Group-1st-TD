@@ -17,7 +17,10 @@ class Config:
     PERMANENT_SESSION_LIFETIME = timedelta(days=7)
     
     # Database
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite:///league.db')
+    SQLALCHEMY_DATABASE_URI = os.environ.get(
+        'DATABASE_URL',
+        'sqlite:///C:/Users/akurs/Desktop/Vibe Coder/main/league_webapp/instance/league.db'
+    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # SQLAlchemy connection pooling (optimized for SQLite)
