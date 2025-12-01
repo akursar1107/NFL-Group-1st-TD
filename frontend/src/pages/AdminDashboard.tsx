@@ -227,6 +227,11 @@ const AdminDashboard: React.FC = () => {
             <div className="nav-title">Grade Picks</div>
             <div className="nav-description">Force grade pending picks</div>
           </div>
+          <div className="nav-card" onClick={() => navigate('/import-picks')}>
+            <div className="nav-icon">📥</div>
+            <div className="nav-title">Import Picks</div>
+            <div className="nav-description">Bulk import from CSV file</div>
+          </div>
         </div>
       </div>
     </div>

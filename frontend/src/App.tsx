@@ -11,6 +11,7 @@ import UserDetail from './pages/UserDetail';
 import AdminDashboard from './pages/AdminDashboard';
 import EditUsers from './pages/EditUsers';
 import GradePicks from './pages/GradePicks';
+import ImportPicks from './pages/ImportPicks';
 import Login from './pages/Login';
 import UserProfile from './pages/UserProfile';
 import './App.css';
@@ -53,6 +54,7 @@ function App() {
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/edit-users" element={<EditUsers />} />
             <Route path="/grade-picks" element={<GradePicks />} />
+            <Route path="/import-picks" element={<ImportPicks />} />
             <Route path="/login" element={<Login />} />
             <Route path="/profile" element={<UserProfile />} />
           </Routes>
