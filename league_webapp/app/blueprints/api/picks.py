@@ -2,9 +2,11 @@
 Picks API endpoints - Create, read, update, delete picks
 """
 from flask import request, jsonify
+from marshmallow import ValidationError
 from . import api_bp
 from ...models import User, Game, Pick as PickModel
 from ... import db
+from ...validators import PickCreateSchema, PickUpdateSchema
 
 
 @api_bp.route('/picks', methods=['GET'])
@@ -53,17 +55,21 @@ def get_picks():
 def create_pick():
     data = request.get_json()
     
+    # Validate input
+    schema = PickCreateSchema()
     try:
-        user_id = data.get('user_id')
-        game_id = data.get('game_id')
-        pick_type = data.get('pick_type', 'FTD')
-        player_name = data.get('player_name', '').strip()
-        player_position = data.get('player_position', 'UNK')
-        odds = data.get('odds')
-        stake = data.get('stake', 1.0)
-        
-        if not all([user_id, game_id, player_name, odds]):
-            return jsonify({'error': 'Missing required fields: user_id, game_id, player_name, odds'}), 400
+        validated_data = schema.load(data)
+    except ValidationError as err:
+        return jsonify({'error': 'Validation failed', 'details': err.messages}), 400
+    
+    try:
+        user_id = validated_data['user_id']
+        game_id = validated_data['game_id']
+        pick_type = validated_data['pick_type']
+        player_name = validated_data['player_name'].strip()
+        player_position = validated_data['player_position']
+        odds = validated_data['odds']
+        stake = validated_data['stake']
         
         existing_pick = PickModel.query.filter_by(
             user_id=user_id,
@@ -102,19 +108,26 @@ def create_pick():
 def update_pick(pick_id):
     data = request.get_json()
     
+    # Validate input
+    schema = PickUpdateSchema()
+    try:
+        validated_data = schema.load(data)
+    except ValidationError as err:
+        return jsonify({'error': 'Validation failed', 'details': err.messages}), 400
+    
     try:
         pick = PickModel.query.get_or_404(pick_id)
         
-        if 'player_name' in data:
-            pick.player_name = data['player_name'].strip()
-        if 'player_position' in data:
-            pick.player_position = data['player_position']
-        if 'pick_type' in data:
-            pick.pick_type = data['pick_type']
-        if 'odds' in data:
-            pick.odds = int(data['odds'])
-        if 'stake' in data:
-            pick.stake = float(data['stake'])
+        if 'player_name' in validated_data:
+            pick.player_name = validated_data['player_name'].strip()
+        if 'player_position' in validated_data:
+            pick.player_position = validated_data['player_position']
+        if 'pick_type' in validated_data:
+            pick.pick_type = validated_data['pick_type']
+        if 'odds' in validated_data:
+            pick.odds = validated_data['odds']
+        if 'stake' in validated_data:
+            pick.stake = validated_data['stake']
         
         db.session.commit()
         

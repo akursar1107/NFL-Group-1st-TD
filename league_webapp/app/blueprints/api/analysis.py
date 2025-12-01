@@ -3,10 +3,12 @@ Analysis API endpoints - Best bets, player analysis, data import
 """
 from flask import request, jsonify
 from datetime import datetime
+from marshmallow import ValidationError
 from . import api_bp
 from ...data_loader import load_data_with_cache_web
 from ...routes import get_nfl_stats_data
 from ...odds_fetcher import get_odds_api_event_ids_for_season, fetch_odds_data, get_best_odds_for_game
+from ...validators import ImportDataSchema
 from nfl_core.stats import (
     get_first_td_scorers, 
     get_player_season_stats, 
@@ -70,7 +72,16 @@ def get_analysis():
 @api_bp.route('/import-data', methods=['POST'])
 def import_data():
     data = request.get_json(force=True)
-    season = data.get('season', 2025)
+    
+    # Validate input
+    schema = ImportDataSchema()
+    try:
+        validated_data = schema.load(data)
+    except ValidationError as err:
+        return jsonify({'error': 'Validation failed', 'details': err.messages}), 400
+    
+    season = validated_data['season']
+    
     try:
         load_data_with_cache_web(season, use_cache=False)
         return jsonify({ 'message': f'Data import for season {season} successful.' }), 200

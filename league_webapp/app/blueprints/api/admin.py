@@ -3,19 +3,26 @@ Admin API endpoints - Dashboard stats, grading, admin operations
 """
 from flask import request, jsonify
 from sqlalchemy import func
+from marshmallow import ValidationError
 from . import api_bp
 from ...models import User, Game, Pick as PickModel
 from ... import db
+from ...validators import GradeWeekSchema
 
 
 @api_bp.route('/grade-week', methods=['POST'])
 def grade_week():
     data = request.get_json()
-    week = data.get('week')
-    season = data.get('season', 2025)
     
-    if not week:
-        return jsonify({'error': 'Week parameter is required'}), 400
+    # Validate input
+    schema = GradeWeekSchema()
+    try:
+        validated_data = schema.load(data)
+    except ValidationError as err:
+        return jsonify({'error': 'Validation failed', 'details': err.messages}), 400
+    
+    week = validated_data['week']
+    season = validated_data['season']
     
     try:
         from ...services.grading_service import GradingService
