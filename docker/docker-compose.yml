@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/backend.Dockerfile
+    container_name: ftd-backend
+    ports:
+      - "5000:5000"
+    volumes:
+      - ../league_webapp:/app/league_webapp
+      - ../nfl_core:/app/nfl_core
+      - ../cache:/app/cache
+      - ../instance:/app/instance
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+    networks:
+      - ftd-network
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/frontend.Dockerfile
+    container_name: ftd-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../frontend/src:/app/src
+      - ../frontend/public:/app/public
+    environment:
+      - REACT_APP_API_BASE_URL=http://localhost:5000
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - backend
+    networks:
+      - ftd-network
+    stdin_open: true
+    tty: true
+
+networks:
+  ftd-network:
+    driver: bridge

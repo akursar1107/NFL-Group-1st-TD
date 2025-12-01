@@ -42,10 +42,16 @@ class DevelopmentConfig(Config):
     # Session Security (relaxed for local development)
     SESSION_COOKIE_SECURE = False  # Allow HTTP
     
-    # Database
+    # Database - Use absolute path that works in Docker and locally
+    # In Docker: /app/instance/league.db
+    # Locally: relative to the league_webapp directory
+    base_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+    instance_path = os.path.join(base_dir, '..', 'instance')
+    db_path = os.path.join(instance_path, 'league.db')
+    
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         'DATABASE_URL',
-        'sqlite:///C:/Users/akurs/Desktop/Vibe Coder/main/league_webapp/instance/league.db'
+        f'sqlite:///{db_path}'
     )
     
     # SQLAlchemy connection pooling (optimized for SQLite)
