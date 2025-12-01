@@ -1,0 +1,458 @@
+.admin-dashboard-container {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.admin-dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.admin-dashboard-header h1 {
+  margin: 0;
+  color: #333;
+}
+
+.season-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.season-selector label {
+  font-weight: 500;
+}
+
+.season-selector select {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.stat-card.positive {
+  border-left: 4px solid #22c55e;
+}
+
+.stat-card.negative {
+  border-left: 4px solid #ef4444;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #333;
+}
+
+/* Bankroll Grid */
+.bankroll-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.bankroll-card {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.bankroll-card.positive {
+  background: linear-gradient(135deg, #dcfce7 0%, #f0fdf4 100%);
+  border-color: #22c55e;
+}
+
+.bankroll-card.negative {
+  background: linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%);
+  border-color: #ef4444;
+}
+
+.bankroll-label {
+  font-size: 1rem;
+  color: #666;
+  margin-bottom: 0.75rem;
+  font-weight: 500;
+}
+
+.bankroll-value {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #333;
+}
+
+/* Games Progress */
+.games-progress {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.games-progress h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.progress-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.progress-label {
+  font-weight: 500;
+  color: #666;
+}
+
+.progress-value {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #333;
+  margin-left: 0.5rem;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 24px;
+  background: #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
+  transition: width 0.3s ease;
+}
+
+/* Quick Actions */
+.quick-actions {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.quick-actions h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.action-btn {
+  padding: 1rem;
+  font-size: 1rem;
+  font-weight: 500;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-btn:hover:not(:disabled) {
+  background: #f9fafb;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.action-btn.primary {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.action-btn.primary:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.action-btn.secondary {
+  background: #10b981;
+  color: white;
+  border-color: #10b981;
+}
+
+.action-btn.secondary:hover:not(:disabled) {
+  background: #059669;
+}
+
+.import-message {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.import-message.success {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #22c55e;
+}
+
+.import-message.error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #ef4444;
+}
+
+/* Recent Activity */
+.recent-activity {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.recent-activity h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.recent-picks-table-wrapper {
+  overflow-x: auto;
+}
+
+.recent-picks-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.recent-picks-table th {
+  background: #f9fafb;
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.recent-picks-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.recent-picks-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.game-cell {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.pick-type-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.pick-type-badge.ftd {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.pick-type-badge.atts {
+  background: #fce7f3;
+  color: #9f1239;
+}
+
+.result-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.result-badge.w {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.result-badge.l {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.result-badge.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.result-badge.push {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.payout.positive {
+  color: #22c55e;
+  font-weight: 600;
+}
+
+.payout.negative {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+/* Navigation Section */
+.navigation-section {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.navigation-section h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.navigation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.nav-card {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.nav-card:hover {
+  background: #f9fafb;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-color: #3b82f6;
+}
+
+.nav-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.nav-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.nav-description {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+/* Error State */
+.error {
+  color: #ef4444;
+  font-weight: 500;
+  padding: 1rem;
+  background: #fee2e2;
+  border: 1px solid #ef4444;
+  border-radius: 4px;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .navigation-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-dashboard-container {
+    padding: 1rem;
+  }
+  
+  .admin-dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .bankroll-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .actions-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .navigation-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .recent-picks-table {
+    font-size: 0.875rem;
+  }
+  
+  .recent-picks-table th,
+  .recent-picks-table td {
+    padding: 0.5rem;
+  }
+}
