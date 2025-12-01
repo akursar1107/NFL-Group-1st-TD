@@ -66,8 +66,17 @@ def get_first_td_scorers(pbp_df: pl.DataFrame, target_game_ids: list[str] | None
         # Get team
         team = row.get('td_team') or row.get('posteam') or "UNK"
         
+        # Determine if this was a home game for the scoring team
+        home_team = row.get('home_team')
+        is_home_game = (team == home_team) if home_team else None
+        
         if scorer:
-            first_td_map[game_id] = {'player': scorer, 'team': team, 'player_id': player_id}
+            first_td_map[game_id] = {
+                'player': scorer, 
+                'team': team, 
+                'player_id': player_id,
+                'is_home_game': is_home_game
+            }
             
     return first_td_map
 

@@ -35,6 +35,10 @@ def get_analysis():
         first_td_map = stats_data['first_td_map']
         schedule_df = stats_data['schedule_df']
         defense_rankings = stats_data['defense_rankings']
+        rz_stats = stats_data['rz_stats']
+        od_stats = stats_data['od_stats']
+        team_rz_splits = stats_data['team_rz_splits']
+        funnel_defenses = stats_data['funnel_defenses']
         
         # Build player database
         for player_name in player_stats_full.keys():
@@ -48,12 +52,25 @@ def get_analysis():
                 if player_rows.height > 0:
                     team = player_rows[0, 'team'] if 'team' in player_rows.columns else None
                     position = player_rows[0, 'position'] if 'position' in player_rows.columns else None
+            
+            # Get RZ and OD stats
+            rz_info = rz_stats.get(player_name, {})
+            od_info = od_stats.get(player_name, {})
+            rz_rate = round((rz_info.get('rz_tds', 0) / rz_info.get('rz_opps', 1) * 100), 1) if rz_info.get('rz_opps', 0) > 0 else 0
+            od_rate = round((od_info.get('od_tds', 0) / od_info.get('od_opps', 1) * 100), 1) if od_info.get('od_opps', 0) > 0 else 0
+            
             player_database.append({
                 'name': player_name,
                 'position': position,
                 'team': team,
                 'stats_full': stats_full,
-                'stats_recent': stats_recent
+                'stats_recent': stats_recent,
+                'rz_rate': rz_rate,
+                'rz_tds': rz_info.get('rz_tds', 0),
+                'rz_opps': rz_info.get('rz_opps', 0),
+                'od_rate': od_rate,
+                'od_tds': od_info.get('od_tds', 0),
+                'od_opps': od_info.get('od_opps', 0)
             })
         
         # Build team data with home/away splits
@@ -75,8 +92,12 @@ def get_analysis():
                 else:
                     team_away_ftd[team] = team_away_ftd.get(team, 0) + 1
         
+        # Count only completed games (those with first TD data)
+        completed_game_ids = set(first_td_map.keys())
         if schedule_df is not None and schedule_df.height > 0:
-            for game_dict in schedule_df.to_dicts():
+            # Filter to only completed games
+            completed_schedule = schedule_df.filter(schedule_df['game_id'].is_in(list(completed_game_ids)))
+            for game_dict in completed_schedule.to_dicts():
                 home = game_dict.get('home_team')
                 away = game_dict.get('away_team')
                 if home:
@@ -99,6 +120,11 @@ def get_analysis():
             away_ftd_pct = round((away_ftds / away_games * 100), 1) if away_games > 0 else 0
             ha_diff = round(home_ftd_pct - away_ftd_pct, 1)
             
+            # Get team RZ splits
+            rz_split = team_rz_splits.get(team, {})
+            rz_pass_pct = round(rz_split.get('pass_pct', 0), 1)
+            rz_run_pct = round(rz_split.get('run_pct', 0), 1)
+            
             team_data.append({
                 'team': team,
                 'games': games,
@@ -106,7 +132,9 @@ def get_analysis():
                 'success_pct': success_pct,
                 'home_ftd_pct': home_ftd_pct,
                 'away_ftd_pct': away_ftd_pct,
-                'ha_diff': ha_diff
+                'ha_diff': ha_diff,
+                'rz_pass_pct': rz_pass_pct,
+                'rz_run_pct': rz_run_pct
             })
         
         team_data.sort(key=lambda x: x['success_pct'], reverse=True)
@@ -114,13 +142,18 @@ def get_analysis():
         # Build defense data as array with correct field names
         defense_data = []
         for team, rankings in defense_rankings.items():
+            # Calculate average rank
+            ranks = [rankings.get('QB', 0), rankings.get('RB', 0), rankings.get('WR', 0), rankings.get('TE', 0)]
+            avg_rank = round(sum(r for r in ranks if r > 0) / len([r for r in ranks if r > 0]), 1) if any(r > 0 for r in ranks) else 0
+            
             defense_data.append({
                 'defense': team,
                 'qb_rank': rankings.get('QB', 0),
                 'rb_rank': rankings.get('RB', 0),
                 'wr_rank': rankings.get('WR', 0),
                 'te_rank': rankings.get('TE', 0),
-                'funnel_type': rankings.get('funnel', None)
+                'avg_rank': avg_rank,
+                'funnel_type': funnel_defenses.get(team, 'Balanced')
             })
         
         # Build trends data
@@ -164,13 +197,53 @@ def get_analysis():
             'weekly_scorers': weekly_scorers
         }
         
+        # Build history data
+        history_results = []
+        all_teams = set()
+        
+        for game_id, ftd_info in first_td_map.items():
+            game_rows = schedule_df.filter(pl.col('game_id') == game_id)
+            if game_rows.height > 0:
+                week = game_rows[0, 'week'] if 'week' in game_rows.columns else None
+                player = ftd_info.get('player')
+                team = ftd_info.get('team')
+                
+                if team:
+                    all_teams.add(team)
+                
+                # Get position from roster
+                position = None
+                player_id = ftd_info.get('player_id')
+                if roster_df is not None and roster_df.height > 0:
+                    if player_id:
+                        player_rows = roster_df.filter(roster_df['gsis_id'] == player_id)
+                        if player_rows.height > 0:
+                            position = player_rows[0, 'position'] if 'position' in player_rows.columns else None
+                    if not position and player:
+                        player_rows = roster_df.filter(roster_df['full_name'].str.to_lowercase() == player.lower())
+                        if player_rows.height > 0:
+                            position = player_rows[0, 'position'] if 'position' in player_rows.columns else None
+                
+                history_results.append({
+                    'season': season,
+                    'week': week,
+                    'team': team,
+                    'player': player,
+                    'position': position
+                })
+        
+        history_data = {
+            'results': history_results,
+            'teams': sorted(list(all_teams))
+        }
+        
         return jsonify({
             'season': season,
             'player_data': player_database,
             'defense_data': defense_data,
             'team_data': team_data,
             'trends_data': trends_data,
-            'history_data': None,  # TODO: Implement history data
+            'history_data': history_data,
             'error': None
         }), 200
     except Exception as e:
