@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    {% if columns and column_map %}
+    <h2>Review CSV Column Mapping</h2>
+    <h5>Example CSV Row:</h5>
+    <div class="mb-3">
+        <pre style="background:#f8f9fa;border:1px solid #ddd;padding:8px;">
+{% if preview_rows and columns %}
+{{ columns|join(', ') }}
+{{ preview_rows[0]|map(attribute=columns)|join(', ') }}
+{% endif %}
+        </pre>
+    </div>
+    <form method="POST" id="column-mapping-form">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>CSV Column</th>
+                    <th>Suggested Mapping</th>
+                    <th>Map To</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for col in columns %}
+                <tr>
+                    <td>{{ col }}</td>
+                    <td>{{ column_map[col] }}</td>
+                    <td>
+                        <select name="map_{{ col }}" class="form-select column-map-select" data-col="{{ col }}">
+                            <option value="" selected>-- Select --</option>
+                            <option value="user_id" {% if column_map[col]=='user_id' %}selected{% endif %}>user_id</option>
+                            <option value="game_id" {% if column_map[col]=='game_id' %}selected{% endif %}>game_id (auto from week/gameday/visitor/home)</option>
+                            <option value="week" {% if column_map[col]=='week' %}selected{% endif %}>week (for game_id)</option>
+                            <option value="gameday" {% if column_map[col]=='gameday' %}selected{% endif %}>gameday (for game_id)</option>
+                            <option value="visitor" {% if column_map[col]=='visitor' %}selected{% endif %}>visitor (for game_id)</option>
+                            <option value="home" {% if column_map[col]=='home' %}selected{% endif %}>home (for game_id)</option>
+                            <option value="pick_type" {% if column_map[col]=='pick_type' %}selected{% endif %}>pick_type</option>
+                            <option value="player_name" {% if column_map[col]=='player_name' %}selected{% endif %}>player_name</option>
+                            <option value="player_position" {% if column_map[col]=='player_position' %}selected{% endif %}>player_position</option>
+                            <option value="odds" {% if column_map[col]=='odds' %}selected{% endif %}>odds</option>
+                            <option value="stake" {% if column_map[col]=='stake' %}selected{% endif %}>stake</option>
+                        </select>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <input type="hidden" name="column_map_confirmed" value="1">
+        <button type="submit" class="btn btn-primary">Confirm Column Mapping</button>
+    </form>
+    <hr>
+    <h4>Live Preview</h4>
+    <div id="preview-table-container">
+        <table class="table table-sm table-striped" id="preview-table">
+            <thead>
+                <tr>
+                    {% for field in ['user_id','game_id','pick_type','player_name','player_position','odds','stake'] %}
+                    <th>{{ field }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in preview_rows %}
+                <tr>
+                    {% for field in ['user_id','game_id','pick_type','player_name','player_position','odds','stake'] %}
+                    <td>{{ row[field] }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <script>
+    // Simple JS to update preview table on column mapping change
+    var columns = {{ safe_columns|tojson|safe }};
+    var originalRows = {{ safe_preview_rows|tojson|safe }};
+    document.querySelectorAll('.column-map-select').forEach(function(select) {
+        select.addEventListener('change', function() {
+            // Get current mapping
+            var mapping = {};
+            document.querySelectorAll('.column-map-select').forEach(function(s) {
+                mapping[s.dataset.col] = s.value;
+            });
+            // Build preview rows
+            var previewRows = [];
+            for (var i = 0; i < originalRows.length; i++) {
+                var row = {};
+                for (var j = 0; j < columns.length; j++) {
+                    var col = columns[j];
+                    var mapped = mapping[col];
+                    if (mapped) {
+                        row[mapped] = originalRows[i][col];
+                    }
+                }
+                previewRows.push(row);
+            }
+            // Update preview table
+            var tbody = document.querySelector('#preview-table tbody');
+            tbody.innerHTML = '';
+            for (var i = 0; i < previewRows.length; i++) {
+                var tr = document.createElement('tr');
+                ['user_id','game_id','pick_type','player_name','player_position','odds','stake'].forEach(function(field) {
+                    var td = document.createElement('td');
+                    td.textContent = previewRows[i][field] || '';
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            }
+        });
+    });
+    </script>
+    <div class="alert alert-info mt-3">
+        <strong>Instructions:</strong> Review and adjust the mapping of CSV columns to expected fields. The preview below updates live as you change mappings. Confirm to proceed to value matching and import review.
+    </div>
+    {% else %}
+    <h2>Review CSV Import - Fuzzy Matching</h2>
+    <form method="POST">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>CSV Row</th>
+                    <th>Player Name (CSV)</th>
+                    <th>Best Match (DB)</th>
+                    <th>Confidence</th>
+                    <th>Decision</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ row.pick_name }}</td>
+                    <td>{{ row.matched_name }} <br><small>{{ row.match_reason }}</small></td>
+                    <td>{{ row.confidence }} ({{ '%.2f'|format(row.match_score) }})</td>
+                    <td>
+                        {% if row.auto_accept %}
+                            <span class="badge bg-success">Auto Accepted</span>
+                            <input type="hidden" name="decision_{{ loop.index0 }}" value="approved">
+                        {% else %}
+                            <select name="decision_{{ loop.index0 }}" class="form-select">
+                                <option value="approved">Approve</option>
+                                <option value="rejected">Reject</option>
+                            </select>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <button type="submit" class="btn btn-primary">Confirm Import</button>
+    </form>
+    <hr>
+    <div class="alert alert-info mt-3">
+        <strong>Instructions:</strong> Review each row. Approve or reject matches flagged for manual review. Auto-accepted rows will be imported directly.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

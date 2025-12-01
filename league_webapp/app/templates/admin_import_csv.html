@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Admin CSV Import</h2>
+    <form method="POST" enctype="multipart/form-data">
+        <div class="mb-3">
+            <label for="csv_file" class="form-label">Select CSV File</label>
+            <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Import CSV</button>
+    </form>
+    <hr>
+    <div class="alert alert-info mt-3">
+        <strong>Instructions:</strong> Upload a CSV file with columns: user_id, game_id, pick_type, player_name, player_position, odds, stake.<br>
+        Required fields: user_id, game_id, player_name, odds.<br>
+        Optional fields: pick_type (default: FTD), player_position (default: UNK), stake (default: 1.0).
+    </div>
+</div>
+{% endblock %}

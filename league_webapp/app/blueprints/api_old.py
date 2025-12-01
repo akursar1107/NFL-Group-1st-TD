@@ -1,8 +1,9 @@
 from flask import Blueprint, request, jsonify
 from ..data_loader import load_data_with_cache_web
-from ..blueprints.main import get_nfl_stats_data
+from ..routes import get_nfl_stats_data
 from ..models import User, Game, Pick as PickModel
 from .. import db
+from ..services import StatsService
 from sqlalchemy import func, case
 from datetime import datetime
 from nfl_core.stats import (
@@ -81,79 +82,14 @@ def import_data():
 def get_standings():
     season = request.args.get('season', 2025, type=int)
     try:
-        ftd_stats = db.session.query(
-            PickModel.__mapper__.columns['user_id'],
-            func.count(case((PickModel.result == 'W', 1))).label('wins'),
-            func.count(case((PickModel.result == 'L', 1))).label('losses'),
-            func.count(case((PickModel.result == 'Pending', 1))).label('pending'),
-            func.sum(PickModel.payout).label('bankroll'),
-            func.count(PickModel.id).label('total')
-        ).join(Game).filter(
-            PickModel.pick_type == 'FTD',
-            Game.season == season
-        ).group_by('user_id').all()
-        
-        atts_stats = db.session.query(
-            PickModel.__mapper__.columns['user_id'],
-            func.count(case((PickModel.result == 'W', 1))).label('wins'),
-            func.count(case((PickModel.result == 'L', 1))).label('losses'),
-            func.count(case((PickModel.result == 'Pending', 1))).label('pending'),
-            func.sum(PickModel.payout).label('bankroll'),
-            func.count(PickModel.id).label('total')
-        ).join(Game).filter(
-            PickModel.pick_type == 'ATTS',
-            Game.season == season
-        ).group_by('user_id').all()
-        
-        ftd_dict = {s.user_id: s for s in ftd_stats}
-        atts_dict = {s.user_id: s for s in atts_stats}
-        users = User.query.filter_by(is_active=True).all()
-        
-        standings = []
-        for user in users:
-            ftd = ftd_dict.get(user.id)
-            atts = atts_dict.get(user.id)
-            total_picks = (ftd.total if ftd else 0) + (atts.total if atts else 0)
-            if total_picks == 0:
-                continue
-            standings.append({
-                'user_id': user.id,
-                'username': user.username,
-                'display_name': user.display_name or user.username,
-                'ftd_wins': ftd.wins if ftd else 0,
-                'ftd_losses': ftd.losses if ftd else 0,
-                'ftd_pending': ftd.pending if ftd else 0,
-                'ftd_bankroll': float(ftd.bankroll) if ftd and ftd.bankroll else 0.0,
-                'atts_wins': atts.wins if atts else 0,
-                'atts_losses': atts.losses if atts else 0,
-                'atts_pending': atts.pending if atts else 0,
-                'atts_bankroll': float(atts.bankroll) if atts and atts.bankroll else 0.0,
-                'total_picks': total_picks
-            })
-        
-        standings.sort(key=lambda x: x['ftd_bankroll'], reverse=True)
-        
-        league_ftd_bankroll = sum(s['ftd_bankroll'] for s in standings)
-        league_atts_bankroll = sum(s['atts_bankroll'] for s in standings)
-        league_total_bankroll = league_ftd_bankroll + league_atts_bankroll
-        
-        total_ftd_wins = sum(s['ftd_wins'] for s in standings)
-        total_ftd_losses = sum(s['ftd_losses'] for s in standings)
-        total_ftd_picks = sum(s['ftd_wins'] + s['ftd_losses'] + s['ftd_pending'] for s in standings)
-        win_rate = (total_ftd_wins / (total_ftd_wins + total_ftd_losses) * 100) if (total_ftd_wins + total_ftd_losses) > 0 else 0
+        # Use StatsService for cleaner code
+        standings = StatsService.calculate_standings(season)
+        stats = StatsService.calculate_league_stats(standings)
         
         return jsonify({
             'standings': standings,
             'season': season,
-            'stats': {
-                'total_players': len(standings),
-                'total_ftd_picks': total_ftd_picks,
-                'total_wins': total_ftd_wins,
-                'win_rate': round(win_rate, 1),
-                'league_ftd_bankroll': round(league_ftd_bankroll, 2),
-                'league_atts_bankroll': round(league_atts_bankroll, 2),
-                'league_total_bankroll': round(league_total_bankroll, 2)
-            }
+            'stats': stats
         }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500

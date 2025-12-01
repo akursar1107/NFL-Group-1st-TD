@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Admin Site Map</h2>
+<ul>
+  {% for link in site_links %}
+    <li><a href="{{ link.url }}">{{ link.name }}</a></li>
+  {% endfor %}
+</ul>
+{% endblock %}
