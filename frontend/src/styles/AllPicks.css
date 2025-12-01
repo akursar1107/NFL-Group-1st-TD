@@ -1,0 +1,334 @@
+.all-picks-container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.all-picks-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 30px;
+}
+
+.all-picks-header h1 {
+  margin: 0;
+  font-size: 2rem;
+  color: #2c3e50;
+}
+
+.season-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.season-selector label {
+  font-weight: bold;
+  color: #495057;
+}
+
+.season-selector select {
+  padding: 8px 15px;
+  border: 1px solid #ced4da;
+  border-radius: 5px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+/* Stats Summary */
+.stats-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.stat-card {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 15px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: #6c757d;
+  font-weight: 600;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #212529;
+}
+
+.stat-wins {
+  color: #28a745;
+}
+
+.stat-losses {
+  color: #dc3545;
+}
+
+.stat-pending {
+  color: #ffc107;
+}
+
+/* Filters Section */
+.filters-section {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: flex-end;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+}
+
+.filter-group label {
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 5px;
+  font-size: 0.9rem;
+}
+
+.filter-group select {
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 5px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  background-color: white;
+}
+
+.btn-reset {
+  padding: 8px 20px;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: background-color 0.3s;
+  margin-top: auto;
+}
+
+.btn-reset:hover {
+  background-color: #5a6268;
+}
+
+/* Table */
+.table-container {
+  overflow-x: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: white;
+}
+
+.picks-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.picks-table th,
+.picks-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.picks-table th {
+  background-color: #343a40;
+  color: white;
+  font-weight: bold;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  white-space: nowrap;
+}
+
+.picks-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.picks-table th.sortable:hover {
+  background-color: #23272b;
+}
+
+.picks-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.game-cell {
+  font-size: 0.9rem;
+  color: #495057;
+  white-space: nowrap;
+}
+
+.player-cell {
+  font-weight: 600;
+  color: #212529;
+}
+
+.odds-cell {
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+}
+
+.no-picks {
+  text-align: center;
+  padding: 40px;
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* Pick Type Badge */
+.pick-type-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+
+.pick-type-badge.ftd {
+  background-color: #007bff;
+  color: white;
+}
+
+.pick-type-badge.atts {
+  background-color: #6f42c1;
+  color: white;
+}
+
+/* Result Badge */
+.result-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 0.85rem;
+}
+
+.result-win {
+  background-color: #28a745;
+  color: white;
+}
+
+.result-loss {
+  background-color: #dc3545;
+  color: white;
+}
+
+.result-pending {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.result-push {
+  background-color: #6c757d;
+  color: white;
+}
+
+/* Payout Colors */
+.payout-positive {
+  color: #28a745;
+  font-weight: bold;
+}
+
+.payout-negative {
+  color: #dc3545;
+  font-weight: bold;
+}
+
+.payout-neutral {
+  color: #6c757d;
+  font-weight: bold;
+}
+
+/* Edit Button */
+.btn-edit-small {
+  padding: 4px 8px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.3s;
+}
+
+.btn-edit-small:hover {
+  background-color: #0056b3;
+}
+
+/* Loading and Error */
+.loading,
+.error-message {
+  text-align: center;
+  padding: 40px;
+  font-size: 1.2rem;
+  color: #6c757d;
+}
+
+.error-message {
+  color: #dc3545;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 8px;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .stats-summary {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .all-picks-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+
+  .all-picks-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .stats-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .filters-section {
+    flex-direction: column;
+  }
+
+  .filter-group {
+    width: 100%;
+  }
+
+  .picks-table {
+    font-size: 0.85rem;
+  }
+
+  .picks-table th,
+  .picks-table td {
+    padding: 8px;
+  }
+}
