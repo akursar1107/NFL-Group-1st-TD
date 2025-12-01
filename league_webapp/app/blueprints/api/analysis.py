@@ -34,10 +34,9 @@ def get_analysis():
         player_stats_recent = stats_data['player_stats_recent']
         first_td_map = stats_data['first_td_map']
         schedule_df = stats_data['schedule_df']
-        defense_data = stats_data['defense_rankings']
-        team_data = stats_data.get('team_data', None)
-        trends_data = stats_data.get('trends_data', None)
-        history_data = stats_data.get('history_data', None)
+        defense_rankings = stats_data['defense_rankings']
+        
+        # Build player database
         for player_name in player_stats_full.keys():
             stats_full = player_stats_full[player_name]
             stats_recent = player_stats_recent.get(player_name, {'first_tds': 0, 'team_games': 0})
@@ -56,13 +55,122 @@ def get_analysis():
                 'stats_full': stats_full,
                 'stats_recent': stats_recent
             })
+        
+        # Build team data with home/away splits
+        team_data = []
+        team_ftd_counts = {}
+        team_home_ftd = {}
+        team_away_ftd = {}
+        team_games = {}
+        team_home_games = {}
+        team_away_games = {}
+        
+        for ftd_info in first_td_map.values():
+            team = ftd_info.get('team')
+            is_home = ftd_info.get('is_home_game', False)
+            if team:
+                team_ftd_counts[team] = team_ftd_counts.get(team, 0) + 1
+                if is_home:
+                    team_home_ftd[team] = team_home_ftd.get(team, 0) + 1
+                else:
+                    team_away_ftd[team] = team_away_ftd.get(team, 0) + 1
+        
+        if schedule_df is not None and schedule_df.height > 0:
+            for game_dict in schedule_df.to_dicts():
+                home = game_dict.get('home_team')
+                away = game_dict.get('away_team')
+                if home:
+                    team_games[home] = team_games.get(home, 0) + 1
+                    team_home_games[home] = team_home_games.get(home, 0) + 1
+                if away:
+                    team_games[away] = team_games.get(away, 0) + 1
+                    team_away_games[away] = team_away_games.get(away, 0) + 1
+        
+        for team in team_games.keys():
+            ftds = team_ftd_counts.get(team, 0)
+            games = team_games.get(team, 0)
+            home_ftds = team_home_ftd.get(team, 0)
+            away_ftds = team_away_ftd.get(team, 0)
+            home_games = team_home_games.get(team, 0)
+            away_games = team_away_games.get(team, 0)
+            
+            success_pct = round((ftds / games * 100), 1) if games > 0 else 0
+            home_ftd_pct = round((home_ftds / home_games * 100), 1) if home_games > 0 else 0
+            away_ftd_pct = round((away_ftds / away_games * 100), 1) if away_games > 0 else 0
+            ha_diff = round(home_ftd_pct - away_ftd_pct, 1)
+            
+            team_data.append({
+                'team': team,
+                'games': games,
+                'first_tds': ftds,
+                'success_pct': success_pct,
+                'home_ftd_pct': home_ftd_pct,
+                'away_ftd_pct': away_ftd_pct,
+                'ha_diff': ha_diff
+            })
+        
+        team_data.sort(key=lambda x: x['success_pct'], reverse=True)
+        
+        # Build defense data as array with correct field names
+        defense_data = []
+        for team, rankings in defense_rankings.items():
+            defense_data.append({
+                'defense': team,
+                'qb_rank': rankings.get('QB', 0),
+                'rb_rank': rankings.get('RB', 0),
+                'wr_rank': rankings.get('WR', 0),
+                'te_rank': rankings.get('TE', 0),
+                'funnel_type': rankings.get('funnel', None)
+            })
+        
+        # Build trends data
+        hot_players = []
+        for player_name, stats_recent in player_stats_recent.items():
+            if stats_recent.get('first_tds', 0) >= 2 and stats_recent.get('team_games', 0) >= 3:
+                position = None
+                team = None
+                if roster_df is not None and roster_df.height > 0:
+                    player_rows = roster_df.filter(roster_df['full_name'].str.to_lowercase() == player_name.lower())
+                    if player_rows.height > 0:
+                        team = player_rows[0, 'team'] if 'team' in player_rows.columns else None
+                        position = player_rows[0, 'position'] if 'position' in player_rows.columns else None
+                
+                hot_players.append({
+                    'name': player_name,
+                    'team': team,
+                    'position': position,
+                    'first_tds': stats_recent['first_tds']
+                })
+        
+        hot_players.sort(key=lambda x: x['first_tds'], reverse=True)
+        
+        weekly_scorers = []
+        if schedule_df is not None and schedule_df.height > 0:
+            for ftd_info in first_td_map.values():
+                game_id = ftd_info.get('game_id')
+                if game_id:
+                    game_rows = schedule_df.filter(pl.col('game_id') == game_id)
+                    if game_rows.height > 0:
+                        week = game_rows[0, 'week'] if 'week' in game_rows.columns else None
+                        weekly_scorers.append({
+                            'week': week,
+                            'player': ftd_info.get('player'),
+                            'team': ftd_info.get('team'),
+                            'position': ftd_info.get('position')
+                        })
+        
+        trends_data = {
+            'hot_players': hot_players[:10],
+            'weekly_scorers': weekly_scorers
+        }
+        
         return jsonify({
             'season': season,
             'player_data': player_database,
             'defense_data': defense_data,
             'team_data': team_data,
             'trends_data': trends_data,
-            'history_data': history_data,
+            'history_data': None,  # TODO: Implement history data
             'error': None
         }), 200
     except Exception as e:
