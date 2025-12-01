@@ -7,6 +7,7 @@ from . import api_bp
 from ...data_loader import load_data_with_cache_web
 from ...models import User, Game, Pick as PickModel
 from ... import db
+from nfl_core.stats import get_first_td_scorers
 import polars as pl
 
 
@@ -48,6 +49,89 @@ def get_weekly_games():
         }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/game-touchdowns/<game_id>', methods=['GET'])
+def get_game_touchdowns(game_id):
+    """Get all touchdown scorers for a specific game in order"""
+    season = request.args.get('season', 2025, type=int)
+    try:
+        schedule_df, pbp_df, roster_df = load_data_with_cache_web(season, use_cache=True)
+        
+        # Filter PBP data for this specific game
+        if pbp_df.height == 0:
+            return jsonify({'touchdowns': [], 'game_id': game_id}), 200
+        
+        game_pbp = pbp_df.filter(pl.col('game_id') == game_id)
+        
+        if game_pbp.height == 0:
+            return jsonify({'touchdowns': [], 'game_id': game_id}), 200
+        
+        # Get touchdown plays sorted by play_id
+        td_plays = game_pbp.filter(
+            (pl.col('touchdown') == 1) | 
+            (pl.col('td_player_name').is_not_null())
+        )
+        
+        if td_plays.height == 0:
+            return jsonify({'touchdowns': [], 'game_id': game_id}), 200
+        
+        # Sort by play_id or time
+        if 'play_id' in td_plays.columns:
+            td_plays = td_plays.sort('play_id')
+        else:
+            td_plays = td_plays.sort(['qtr', 'time'])
+        
+        # Create a mapping from ID to Full Name
+        id_to_name = {}
+        if roster_df is not None and 'gsis_id' in roster_df.columns and 'full_name' in roster_df.columns:
+            temp_df = roster_df.select(['gsis_id', 'full_name', 'position']).unique()
+            for r in temp_df.to_dicts():
+                if r['gsis_id'] and r['full_name']:
+                    id_to_name[r['gsis_id']] = {
+                        'name': r['full_name'],
+                        'position': r.get('position')
+                    }
+        
+        touchdowns = []
+        for idx, row in enumerate(td_plays.to_dicts()):
+            scorer = None
+            player_id = row.get('td_player_id')
+            team = row.get('td_team') or row.get('posteam') or 'UNK'
+            position = None
+            
+            # Try roster lookup
+            if player_id and player_id in id_to_name:
+                scorer = id_to_name[player_id]['name']
+                position = id_to_name[player_id]['position']
+            
+            # Try PBP columns if no roster match
+            if not scorer:
+                for key in ['fantasy_player_name', 'player_name', 'td_player_name', 'desc', 'description']:
+                    if key in row and row.get(key):
+                        scorer = str(row.get(key))
+                        if key in ['desc', 'description'] and ' for ' in scorer:
+                            scorer = scorer.split(' for ')[0].strip()
+                        break
+            
+            if scorer:
+                touchdowns.append({
+                    'order': idx + 1,
+                    'player': scorer,
+                    'team': team,
+                    'position': position,
+                    'quarter': row.get('qtr'),
+                    'time': row.get('time'),
+                    'is_first_td': idx == 0
+                })
+        
+        return jsonify({
+            'touchdowns': touchdowns,
+            'game_id': game_id
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e), 'touchdowns': [], 'game_id': game_id}), 500
 
 
 @api_bp.route('/week-detail', methods=['GET'])

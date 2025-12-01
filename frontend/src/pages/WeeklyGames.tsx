@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { fetchWeeklyGames, GameData } from '../api/weeklyGames';
+import { fetchWeeklyGames, fetchGameTouchdowns, GameData, TDScorer } from '../api/weeklyGames';
 
 const WeeklyGames: React.FC = () => {
   const [games, setGames] = useState<GameData[]>([]);
@@ -7,6 +7,9 @@ const WeeklyGames: React.FC = () => {
   const [week, setWeek] = useState<number>(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedGameId, setExpandedGameId] = useState<string | null>(null);
+  const [touchdowns, setTouchdowns] = useState<TDScorer[]>([]);
+  const [loadingTDs, setLoadingTDs] = useState(false);
 
   useEffect(() => {
     loadGames();
@@ -63,6 +66,48 @@ const WeeklyGames: React.FC = () => {
     }
   };
 
+  const handleGameClick = async (game: GameData) => {
+    console.log('Game clicked:', game.game_id, 'Status:', getGameStatus(game));
+    
+    // If already expanded, collapse it
+    if (expandedGameId === game.game_id) {
+      setExpandedGameId(null);
+      setTouchdowns([]);
+      return;
+    }
+
+    // Only fetch TDs for completed games
+    if (game.home_score === null || game.away_score === null) {
+      console.log('Game not final, cannot fetch TDs');
+      return;
+    }
+
+    setExpandedGameId(game.game_id);
+    setLoadingTDs(true);
+    try {
+      console.log('Fetching touchdowns for:', game.game_id);
+      const data = await fetchGameTouchdowns(game.game_id, season);
+      console.log('Received touchdowns:', data.touchdowns);
+      setTouchdowns(data.touchdowns);
+    } catch (err) {
+      console.error('Failed to fetch touchdowns:', err);
+      setTouchdowns([]);
+    } finally {
+      setLoadingTDs(false);
+    }
+  };
+
+  const getPositionColor = (position?: string) => {
+    if (!position) return '#6c757d';
+    switch (position) {
+      case 'QB': return '#007bff';
+      case 'RB': return '#28a745';
+      case 'WR': return '#ffc107';
+      case 'TE': return '#17a2b8';
+      default: return '#dc3545';
+    }
+  };
+
   return (
     <div>
       <div style={{ marginBottom: '1.5rem' }}>
@@ -107,16 +152,42 @@ const WeeklyGames: React.FC = () => {
             const status = getGameStatus(game);
             const statusColor = getStatusColor(status);
             const isFinal = status === 'FINAL';
+            const isExpanded = expandedGameId === game.game_id;
+            
+            console.log(`Game ${idx}:`, {
+              game_id: game.game_id,
+              status,
+              isFinal,
+              home_score: game.home_score,
+              away_score: game.away_score
+            });
             
             return (
               <div 
                 key={idx} 
                 style={{ 
-                  border: '1px solid #ddd', 
+                  border: '1px solid #4a4a4a', 
                   borderRadius: '8px', 
                   padding: '1rem',
-                  background: 'white',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                  background: '#2a2a2a',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                  cursor: isFinal ? 'pointer' : 'default',
+                  transition: 'all 0.2s ease',
+                  transform: isFinal && isExpanded ? 'scale(1.01)' : 'scale(1)'
+                }}
+                onClick={(e) => {
+                  console.log('Div clicked, isFinal:', isFinal);
+                  if (isFinal) {
+                    handleGameClick(game);
+                  }
+                }}
+                onMouseEnter={(e) => {
+                  if (isFinal) {
+                    e.currentTarget.style.borderColor = '#b09613';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#4a4a4a';
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
@@ -130,21 +201,21 @@ const WeeklyGames: React.FC = () => {
                   }}>
                     {status}
                   </div>
-                  <div style={{ fontSize: '0.85rem', color: '#6c757d' }}>
+                  <div style={{ fontSize: '0.85rem', color: '#b09613' }}>
                     {formatGameTime(game.gameday)}
                   </div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '1rem', alignItems: 'center' }}>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#e0e0e0' }}>
                       {game.away_team}
                     </div>
                     {isFinal && game.away_score !== null && (
                       <div style={{ 
                         fontSize: '1.5rem', 
                         fontWeight: 'bold',
-                        color: game.away_score > (game.home_score || 0) ? '#28a745' : '#6c757d'
+                        color: game.away_score > (game.home_score || 0) ? '#13b047' : '#b09613'
                       }}>
                         {game.away_score}
                       </div>
@@ -153,21 +224,21 @@ const WeeklyGames: React.FC = () => {
 
                   <div style={{ 
                     fontSize: '1.5rem', 
-                    color: '#6c757d',
+                    color: '#b09613',
                     padding: '0 1rem'
                   }}>
                     @
                   </div>
 
                   <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#e0e0e0' }}>
                       {game.home_team}
                     </div>
                     {isFinal && game.home_score !== null && (
                       <div style={{ 
                         fontSize: '1.5rem', 
                         fontWeight: 'bold',
-                        color: game.home_score > (game.away_score || 0) ? '#28a745' : '#6c757d'
+                        color: game.home_score > (game.away_score || 0) ? '#13b047' : '#b09613'
                       }}>
                         {game.home_score}
                       </div>
@@ -176,8 +247,104 @@ const WeeklyGames: React.FC = () => {
                 </div>
 
                 {!isFinal && game.gameday && (
-                  <div style={{ marginTop: '0.75rem', textAlign: 'center', fontSize: '0.85rem', color: '#6c757d' }}>
+                  <div style={{ marginTop: '0.75rem', textAlign: 'center', fontSize: '0.85rem', color: '#b09613' }}>
                     {new Date(game.gameday) > new Date() ? 'Kickoff' : 'Started'}: {formatGameTime(game.gameday)}
+                  </div>
+                )}
+
+                {/* TD Scorers Section */}
+                {isExpanded && (
+                  <div style={{ 
+                    marginTop: '1rem', 
+                    paddingTop: '1rem', 
+                    borderTop: '1px solid #4a4a4a'
+                  }}>
+                    {loadingTDs ? (
+                      <div style={{ textAlign: 'center', color: '#b09613', padding: '1rem' }}>
+                        Loading touchdowns...
+                      </div>
+                    ) : touchdowns.length > 0 ? (
+                      <div>
+                        <h5 style={{ marginBottom: '0.75rem', color: '#b09613', fontSize: '1rem' }}>
+                          Touchdown Scorers ({touchdowns.length})
+                        </h5>
+                        <div style={{ display: 'grid', gap: '0.5rem' }}>
+                          {touchdowns.map((td, tdIdx) => (
+                            <div 
+                              key={tdIdx}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.75rem',
+                                padding: '0.5rem',
+                                background: '#1a1a1a',
+                                borderRadius: '4px',
+                                borderLeft: td.is_first_td ? '3px solid #13b047' : '3px solid #4a4a4a'
+                              }}
+                            >
+                              <div style={{ 
+                                fontWeight: 'bold', 
+                                color: '#b09613',
+                                minWidth: '30px'
+                              }}>
+                                {td.order}.
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ 
+                                  fontWeight: 'bold', 
+                                  color: '#e0e0e0',
+                                  marginBottom: '0.25rem'
+                                }}>
+                                  {td.player}
+                                  {td.is_first_td && (
+                                    <span style={{ 
+                                      marginLeft: '0.5rem',
+                                      fontSize: '0.75rem',
+                                      color: '#13b047',
+                                      background: '#13b04720',
+                                      padding: '0.125rem 0.375rem',
+                                      borderRadius: '3px'
+                                    }}>
+                                      FIRST TD
+                                    </span>
+                                  )}
+                                </div>
+                                <div style={{ 
+                                  fontSize: '0.85rem', 
+                                  color: '#999'
+                                }}>
+                                  {td.team}
+                                  {td.position && (
+                                    <span 
+                                      style={{ 
+                                        marginLeft: '0.5rem',
+                                        padding: '0.125rem 0.375rem',
+                                        borderRadius: '3px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 'bold',
+                                        background: getPositionColor(td.position),
+                                        color: '#fff'
+                                      }}
+                                    >
+                                      {td.position}
+                                    </span>
+                                  )}
+                                  {td.quarter && td.time && (
+                                    <span style={{ marginLeft: '0.5rem' }}>
+                                      • Q{td.quarter} {td.time}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: 'center', color: '#6c757d', padding: '1rem' }}>
+                        No touchdowns scored in this game
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

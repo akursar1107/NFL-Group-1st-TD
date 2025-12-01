@@ -11,6 +11,22 @@ export interface GameData {
   game_type: string;
 }
 
+export interface TDScorer {
+  order: number;
+  player: string;
+  team: string;
+  position?: string;
+  quarter?: number;
+  time?: string;
+  is_first_td: boolean;
+}
+
+export interface GameTouchdownsResponse {
+  touchdowns: TDScorer[];
+  game_id: string;
+  error?: string;
+}
+
 export interface WeeklyGamesResponse {
   games: GameData[];
   week: number;
@@ -25,6 +41,15 @@ export const fetchWeeklyGames = async (season: number = 2025, week?: number): Pr
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error('Failed to fetch weekly games');
+  }
+  return response.json();
+};
+
+export const fetchGameTouchdowns = async (gameId: string, season: number = 2025): Promise<GameTouchdownsResponse> => {
+  const url = `${API_BASE_URL}/api/game-touchdowns/${gameId}?season=${season}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error('Failed to fetch game touchdowns');
   }
   return response.json();
 };
