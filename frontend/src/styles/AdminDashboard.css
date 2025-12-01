@@ -2,6 +2,8 @@
   padding: 2rem;
   max-width: 1400px;
   margin: 0 auto;
+  background-color: #2a2a2a;
+  min-height: calc(100vh - 60px);
 }
 
 .admin-dashboard-header {
@@ -13,7 +15,7 @@
 
 .admin-dashboard-header h1 {
   margin: 0;
-  color: #333;
+  color: #e0e0e0;
 }
 
 .season-selector {
@@ -24,13 +26,16 @@
 
 .season-selector label {
   font-weight: 500;
+  color: #b09613;
 }
 
 .season-selector select {
   padding: 0.5rem;
-  border: 1px solid #ddd;
+  border: 1px solid #4a4a4a;
   border-radius: 4px;
   font-size: 1rem;
+  background-color: #3a3a3a;
+  color: #e0e0e0;
 }
 
 /* Stats Grid */
@@ -42,24 +47,24 @@
 }
 
 .stat-card {
-  background: white;
-  border: 1px solid #ddd;
+  background: #3a3a3a;
+  border: 1px solid #4a4a4a;
   border-radius: 8px;
   padding: 1.5rem;
   text-align: center;
 }
 
 .stat-card.positive {
-  border-left: 4px solid #22c55e;
+  border-left: 4px solid #13b047;
 }
 
 .stat-card.negative {
-  border-left: 4px solid #ef4444;
+  border-left: 4px solid #dc3545;
 }
 
 .stat-label {
   font-size: 0.875rem;
-  color: #666;
+  color: #b09613;
   margin-bottom: 0.5rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -68,7 +73,7 @@
 .stat-value {
   font-size: 2rem;
   font-weight: bold;
-  color: #333;
+  color: #e0e0e0;
 }
 
 /* Bankroll Grid */
@@ -80,26 +85,26 @@
 }
 
 .bankroll-card {
-  background: white;
-  border: 1px solid #ddd;
+  background: #3a3a3a;
+  border: 1px solid #4a4a4a;
   border-radius: 8px;
   padding: 1.5rem;
   text-align: center;
 }
 
 .bankroll-card.positive {
-  background: linear-gradient(135deg, #dcfce7 0%, #f0fdf4 100%);
-  border-color: #22c55e;
+  background: #2a4a2a;
+  border-color: #13b047;
 }
 
 .bankroll-card.negative {
-  background: linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%);
-  border-color: #ef4444;
+  background: #4a2a2a;
+  border-color: #dc3545;
 }
 
 .bankroll-label {
   font-size: 1rem;
-  color: #666;
+  color: #b09613;
   margin-bottom: 0.75rem;
   font-weight: 500;
 }
@@ -107,13 +112,13 @@
 .bankroll-value {
   font-size: 2.5rem;
   font-weight: bold;
-  color: #333;
+  color: #e0e0e0;
 }
 
 /* Games Progress */
 .games-progress {
-  background: white;
-  border: 1px solid #ddd;
+  background: #3a3a3a;
+  border: 1px solid #4a4a4a;
   border-radius: 8px;
   padding: 1.5rem;
   margin-bottom: 2rem;
@@ -122,7 +127,7 @@
 .games-progress h3 {
   margin-top: 0;
   margin-bottom: 1rem;
-  color: #333;
+  color: #e0e0e0;
 }
 
 .progress-info {
@@ -133,20 +138,20 @@
 
 .progress-label {
   font-weight: 500;
-  color: #666;
+  color: #b09613;
 }
 
 .progress-value {
   font-size: 1.25rem;
   font-weight: bold;
-  color: #333;
+  color: #e0e0e0;
   margin-left: 0.5rem;
 }
 
 .progress-bar {
   width: 100%;
   height: 24px;
-  background: #e5e7eb;
+  background: #2a2a2a;
   border-radius: 12px;
   overflow: hidden;
   margin-top: 0.5rem;
@@ -154,14 +159,14 @@
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
+  background: linear-gradient(90deg, #007bff 0%, #0056b3 100%);
   transition: width 0.3s ease;
 }
 
 /* Quick Actions */
 .quick-actions {
-  background: white;
-  border: 1px solid #ddd;
+  background: #3a3a3a;
+  border: 1px solid #4a4a4a;
   border-radius: 8px;
   padding: 1.5rem;
   margin-bottom: 2rem;
@@ -170,7 +175,7 @@
 .quick-actions h3 {
   margin-top: 0;
   margin-bottom: 1rem;
-  color: #333;
+  color: #e0e0e0;
 }
 
 .actions-grid {
@@ -183,18 +188,18 @@
   padding: 1rem;
   font-size: 1rem;
   font-weight: 500;
-  border: 1px solid #ddd;
+  border: 1px solid #4a4a4a;
   border-radius: 6px;
-  background: white;
-  color: #333;
+  background: #2a2a2a;
+  color: #e0e0e0;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .action-btn:hover:not(:disabled) {
-  background: #f9fafb;
+  background: #3a3a3a;
   transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
 .action-btn:disabled {
@@ -203,23 +208,23 @@
 }
 
 .action-btn.primary {
-  background: #3b82f6;
+  background: #007bff;
   color: white;
-  border-color: #3b82f6;
+  border-color: #007bff;
 }
 
 .action-btn.primary:hover:not(:disabled) {
-  background: #2563eb;
+  background: #0056b3;
 }
 
 .action-btn.secondary {
-  background: #10b981;
+  background: #13b047;
   color: white;
-  border-color: #10b981;
+  border-color: #13b047;
 }
 
 .action-btn.secondary:hover:not(:disabled) {
-  background: #059669;
+  background: #0e8a37;
 }
 
 .import-message {
@@ -230,21 +235,21 @@
 }
 
 .import-message.success {
-  background: #dcfce7;
-  color: #166534;
-  border: 1px solid #22c55e;
+  background: #2a4a2a;
+  color: #13b047;
+  border: 1px solid #13b047;
 }
 
 .import-message.error {
-  background: #fee2e2;
-  color: #991b1b;
-  border: 1px solid #ef4444;
+  background: #4a2a2a;
+  color: #dc3545;
+  border: 1px solid #dc3545;
 }
 
 /* Recent Activity */
 .recent-activity {
-  background: white;
-  border: 1px solid #ddd;
+  background: #3a3a3a;
+  border: 1px solid #4a4a4a;
   border-radius: 8px;
   padding: 1.5rem;
   margin-bottom: 2rem;
@@ -253,7 +258,7 @@
 .recent-activity h3 {
   margin-top: 0;
   margin-bottom: 1rem;
-  color: #333;
+  color: #e0e0e0;
 }
 
 .recent-picks-table-wrapper {
@@ -266,26 +271,27 @@
 }
 
 .recent-picks-table th {
-  background: #f9fafb;
+  background: #2c3e50;
   padding: 0.75rem;
   text-align: left;
   font-weight: 600;
-  color: #374151;
-  border-bottom: 2px solid #e5e7eb;
+  color: #fff;
+  border-bottom: 2px solid #4a4a4a;
 }
 
 .recent-picks-table td {
   padding: 0.75rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #4a4a4a;
+  color: #e0e0e0;
 }
 
 .recent-picks-table tbody tr:hover {
-  background: #f9fafb;
+  background: #3a3a3a;
 }
 
 .game-cell {
   font-size: 0.875rem;
-  color: #666;
+  color: #b0b0b0;
 }
 
 .pick-type-badge {
@@ -298,13 +304,13 @@
 }
 
 .pick-type-badge.ftd {
-  background: #dbeafe;
-  color: #1e40af;
+  background: #007bff;
+  color: white;
 }
 
 .pick-type-badge.atts {
-  background: #fce7f3;
-  color: #9f1239;
+  background: #e91e63;
+  color: white;
 }
 
 .result-badge {
@@ -316,39 +322,39 @@
 }
 
 .result-badge.w {
-  background: #dcfce7;
-  color: #166534;
+  background: #13b047;
+  color: white;
 }
 
 .result-badge.l {
-  background: #fee2e2;
-  color: #991b1b;
+  background: #dc3545;
+  color: white;
 }
 
 .result-badge.pending {
-  background: #fef3c7;
-  color: #92400e;
+  background: #ffc107;
+  color: #000;
 }
 
 .result-badge.push {
-  background: #e5e7eb;
-  color: #374151;
+  background: #6c757d;
+  color: white;
 }
 
 .payout.positive {
-  color: #22c55e;
+  color: #13b047;
   font-weight: 600;
 }
 
 .payout.negative {
-  color: #ef4444;
+  color: #dc3545;
   font-weight: 600;
 }
 
 /* Navigation Section */
 .navigation-section {
-  background: white;
-  border: 1px solid #ddd;
+  background: #3a3a3a;
+  border: 1px solid #4a4a4a;
   border-radius: 8px;
   padding: 1.5rem;
 }
@@ -356,7 +362,7 @@
 .navigation-section h3 {
   margin-top: 0;
   margin-bottom: 1rem;
-  color: #333;
+  color: #e0e0e0;
 }
 
 .navigation-grid {
@@ -366,8 +372,8 @@
 }
 
 .nav-card {
-  background: white;
-  border: 1px solid #ddd;
+  background: #2a2a2a;
+  border: 1px solid #4a4a4a;
   border-radius: 8px;
   padding: 1.5rem;
   cursor: pointer;
@@ -376,10 +382,10 @@
 }
 
 .nav-card:hover {
-  background: #f9fafb;
+  background: #3a3a3a;
   transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  border-color: #3b82f6;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  border-color: #007bff;
 }
 
 .nav-icon {
@@ -390,22 +396,22 @@
 .nav-title {
   font-size: 1.125rem;
   font-weight: 600;
-  color: #333;
+  color: #e0e0e0;
   margin-bottom: 0.5rem;
 }
 
 .nav-description {
   font-size: 0.875rem;
-  color: #666;
+  color: #b0b0b0;
 }
 
 /* Error State */
 .error {
-  color: #ef4444;
+  color: #dc3545;
   font-weight: 500;
   padding: 1rem;
-  background: #fee2e2;
-  border: 1px solid #ef4444;
+  background: #4a2a2a;
+  border: 1px solid #dc3545;
   border-radius: 4px;
 }
 

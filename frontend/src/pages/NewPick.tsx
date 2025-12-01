@@ -1,21 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPick, fetchUsers, fetchGames, User, Game, CreatePickData } from '../api/picks';
+import { fetchCurrentWeek } from '../api/weeklyGames';
 
 const NewPick: React.FC = () => {
   const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
   const [games, setGames] = useState<Game[]>([]);
   const [season, setSeason] = useState(2025);
-  const [week, setWeek] = useState<number>(1);
+  const [week, setWeek] = useState<number | null>(null);
   
-  const [formData, setFormData] = useState<CreatePickData>({
+  const [formData, setFormData] = useState({
     user_id: 0,
     game_id: 0,
-    pick_type: 'FTD',
     player_name: '',
-    player_position: 'WR',
-    odds: 0,
+    ftd_odds: 0,
+    atts_odds: 0,
     stake: 1.0
   });
   
@@ -24,8 +24,23 @@ const NewPick: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    loadUsers();
-    loadGames();
+    const initializeWeek = async () => {
+      try {
+        const data = await fetchCurrentWeek(season);
+        setWeek(data.current_week);
+      } catch (err) {
+        console.error('Failed to fetch current week:', err);
+        setWeek(13); // Default to week 13 if fetch fails
+      }
+    };
+    initializeWeek();
+  }, [season]);
+
+  useEffect(() => {
+    if (week !== null) {
+      loadUsers();
+      loadGames();
+    }
   }, [season, week]);
 
   const loadUsers = async () => {
@@ -38,8 +53,9 @@ const NewPick: React.FC = () => {
   };
 
   const loadGames = async () => {
+    if (week === null) return;
     try {
-      const data = await fetchGames(season, week);
+      const data = await fetchGames(season, week, true); // true = standalone only
       setGames(data.games);
     } catch (err: any) {
       setError(`Failed to load games: ${err.message}`);
@@ -52,24 +68,62 @@ const NewPick: React.FC = () => {
     setError(null);
     setSuccess(null);
 
-    if (!formData.user_id || !formData.game_id || !formData.player_name || !formData.odds) {
+    if (!formData.user_id || !formData.game_id || !formData.player_name) {
       setError('Please fill in all required fields');
       setLoading(false);
       return;
     }
 
+    if (!formData.ftd_odds && !formData.atts_odds) {
+      setError('Please enter at least one odds value (FTD or ATTS)');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const result = await createPick(formData);
-      setSuccess(`Pick created successfully! ${formData.pick_type}: ${formData.player_name} (${formData.odds > 0 ? '+' : ''}${formData.odds})`);
+      const picksCreated = [];
+      
+      // Create FTD pick if odds provided
+      if (formData.ftd_odds) {
+        const ftdPick: CreatePickData = {
+          user_id: formData.user_id,
+          game_id: formData.game_id,
+          pick_type: 'FTD',
+          player_name: formData.player_name,
+          player_position: undefined,
+          odds: formData.ftd_odds,
+          stake: formData.stake
+        };
+        await createPick(ftdPick);
+        picksCreated.push(`FTD (${formData.ftd_odds > 0 ? '+' : ''}${formData.ftd_odds})`);
+      }
+      
+      // Create ATTS pick if odds provided
+      if (formData.atts_odds) {
+        const attsPick: CreatePickData = {
+          user_id: formData.user_id,
+          game_id: formData.game_id,
+          pick_type: 'ATTS',
+          player_name: formData.player_name,
+          player_position: undefined,
+          odds: formData.atts_odds,
+          stake: formData.stake
+        };
+        await createPick(attsPick);
+        picksCreated.push(`ATTS (${formData.atts_odds > 0 ? '+' : ''}${formData.atts_odds})`);
+      }
+      
+      setSuccess(`Picks created successfully for ${formData.player_name}: ${picksCreated.join(' & ')}`);
       
       if (addAnother) {
         setFormData({
           ...formData,
           player_name: '',
-          odds: 0
+          ftd_odds: 0,
+          atts_odds: 0
         });
       } else {
-        setTimeout(() => navigate('/week-detail'), 1500);
+        setTimeout(() => navigate('/weekly-games'), 1500);
       }
     } catch (err: any) {
       setError(err.message);
@@ -122,8 +176,9 @@ const NewPick: React.FC = () => {
                 Week <span style={{ color: '#dc3545' }}>*</span>
               </label>
               <select 
-                value={week}
+                value={week ?? 13}
                 onChange={(e) => setWeek(Number(e.target.value))}
+                disabled={week === null}
                 style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
               >
                 {Array.from({ length: 18 }, (_, i) => i + 1).map(w => (
@@ -170,35 +225,8 @@ const NewPick: React.FC = () => {
               ))}
             </select>
             <small style={{ color: '#6c757d', display: 'block', marginTop: '0.25rem' }}>
-              {games.length} games available for Week {week}
+              {games.length} standalone games available for Week {week ?? '...'}
             </small>
-          </div>
-
-          {/* Pick Type */}
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-              Pick Type <span style={{ color: '#dc3545' }}>*</span>
-            </label>
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <input 
-                  type="radio"
-                  value="FTD"
-                  checked={formData.pick_type === 'FTD'}
-                  onChange={(e) => setFormData({ ...formData, pick_type: e.target.value })}
-                />
-                First TD
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <input 
-                  type="radio"
-                  value="ATTS"
-                  checked={formData.pick_type === 'ATTS'}
-                  onChange={(e) => setFormData({ ...formData, pick_type: e.target.value })}
-                />
-                Anytime TD
-              </label>
-            </div>
           </div>
 
           {/* Player Name */}
@@ -216,39 +244,37 @@ const NewPick: React.FC = () => {
             />
           </div>
 
-          {/* Player Position */}
+          {/* First TD Odds */}
           <div style={{ marginBottom: '1rem' }}>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-              Position
-            </label>
-            <select 
-              value={formData.player_position}
-              onChange={(e) => setFormData({ ...formData, player_position: e.target.value })}
-              style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
-            >
-              <option value="WR">WR</option>
-              <option value="RB">RB</option>
-              <option value="TE">TE</option>
-              <option value="QB">QB</option>
-              <option value="UNK">Unknown</option>
-            </select>
-          </div>
-
-          {/* Odds */}
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-              Odds (American) <span style={{ color: '#dc3545' }}>*</span>
+              First TD Odds (American)
             </label>
             <input 
               type="number"
-              value={formData.odds || ''}
-              onChange={(e) => setFormData({ ...formData, odds: Number(e.target.value) })}
-              placeholder="e.g., 900 for +900 or -110"
-              required
+              value={formData.ftd_odds || ''}
+              onChange={(e) => setFormData({ ...formData, ftd_odds: Number(e.target.value) })}
+              placeholder="e.g., 900 for +900"
               style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
             />
             <small style={{ color: '#6c757d', display: 'block', marginTop: '0.25rem' }}>
-              Enter positive or negative number (e.g., 900 = +900, -110 = -110)
+              Leave blank to skip FTD pick
+            </small>
+          </div>
+
+          {/* Anytime TD Odds */}
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+              Anytime TD Odds (American)
+            </label>
+            <input 
+              type="number"
+              value={formData.atts_odds || ''}
+              onChange={(e) => setFormData({ ...formData, atts_odds: Number(e.target.value) })}
+              placeholder="e.g., 330 for +330"
+              style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+            />
+            <small style={{ color: '#6c757d', display: 'block', marginTop: '0.25rem' }}>
+              Leave blank to skip ATTS pick
             </small>
           </div>
 
@@ -273,7 +299,7 @@ const NewPick: React.FC = () => {
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #ddd' }}>
             <button 
               type="button"
-              onClick={() => navigate('/week-detail')}
+              onClick={() => navigate('/weekly-games')}
               style={{ 
                 padding: '0.75rem 1.5rem', 
                 background: '#6c757d', 

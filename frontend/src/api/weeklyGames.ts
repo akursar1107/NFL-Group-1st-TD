@@ -34,6 +34,21 @@ export interface WeeklyGamesResponse {
   error?: string;
 }
 
+export interface CurrentWeekResponse {
+  current_week: number;
+  season: number;
+  error?: string;
+}
+
+export const fetchCurrentWeek = async (season: number = 2025): Promise<CurrentWeekResponse> => {
+  const url = `${API_BASE_URL}/api/current-week?season=${season}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error('Failed to fetch current week');
+  }
+  return response.json();
+};
+
 export const fetchWeeklyGames = async (season: number = 2025, week?: number): Promise<WeeklyGamesResponse> => {
   const url = week 
     ? `${API_BASE_URL}/api/weekly-games?season=${season}&week=${week}`

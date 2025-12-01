@@ -7,6 +7,59 @@ from . import api_bp
 from ...models import User, Game, Pick as PickModel
 from ... import db
 from ...validators import PickCreateSchema, PickUpdateSchema
+from ...data_loader import load_data_with_cache_web
+from ...fuzzy_matcher import NameMatcher
+
+
+def get_player_position(player_name: str, game: Game) -> str:
+    """
+    Use fuzzy matching to find player position from roster data.
+    
+    Args:
+        player_name: Name of the player
+        game: Game object to get season and teams
+    
+    Returns:
+        Position code (QB, RB, WR, TE) or 'UNK' if not found
+    """
+    try:
+        # Load roster data for the season
+        _, _, roster_df = load_data_with_cache_web(game.season, use_cache=True)
+        
+        # Filter to only players from the game's teams
+        game_rosters = roster_df.filter(
+            (roster_df['team'] == game.home_team) | 
+            (roster_df['team'] == game.away_team)
+        )
+        
+        if len(game_rosters) == 0:
+            return 'UNK'
+        
+        # Get player names and positions
+        players = game_rosters.select(['player_name', 'position']).to_dicts()
+        player_names = [p['player_name'] for p in players]
+        
+        # Use fuzzy matcher to find best match
+        matcher = NameMatcher()
+        match_result = matcher.find_best_match(player_name, player_names, min_score=0.70)
+        
+        if match_result and match_result['auto_accept']:
+            # Find the position for the matched player
+            matched_player = next((p for p in players if p['player_name'] == match_result['matched_name']), None)
+            if matched_player and matched_player['position']:
+                position = matched_player['position']
+                # Map position to our standard codes
+                if position in ['QB', 'RB', 'WR', 'TE']:
+                    return position
+                elif position in ['FB', 'HB']:
+                    return 'RB'
+                else:
+                    return 'UNK'
+        
+        return 'UNK'
+    except Exception as e:
+        print(f"Error getting player position: {e}")
+        return 'UNK'
 
 
 @api_bp.route('/picks', methods=['GET'])
@@ -71,6 +124,15 @@ def create_pick():
         odds = validated_data['odds']
         stake = validated_data['stake']
         
+        # Get the game to access season and teams for position lookup
+        game = Game.query.get(game_id)
+        if not game:
+            return jsonify({'error': 'Game not found'}), 404
+        
+        # If position is UNK (default), try to auto-detect from roster
+        if player_position == 'UNK':
+            player_position = get_player_position(player_name, game)
+        
         existing_pick = PickModel.query.filter_by(
             user_id=user_id,
             game_id=game_id,
@@ -97,7 +159,8 @@ def create_pick():
         
         return jsonify({
             'message': 'Pick created successfully',
-            'pick_id': new_pick.id
+            'pick_id': new_pick.id,
+            'player_position': player_position
         }), 201
     except Exception as e:
         db.session.rollback()

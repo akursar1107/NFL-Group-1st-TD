@@ -1,21 +1,38 @@
 import React, { useEffect, useState } from 'react';
-import { fetchWeeklyGames, fetchGameTouchdowns, GameData, TDScorer } from '../api/weeklyGames';
+import { fetchWeeklyGames, fetchGameTouchdowns, fetchCurrentWeek, GameData, TDScorer } from '../api/weeklyGames';
 
 const WeeklyGames: React.FC = () => {
   const [games, setGames] = useState<GameData[]>([]);
   const [season, setSeason] = useState(2025);
-  const [week, setWeek] = useState<number>(1);
+  const [week, setWeek] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedGameId, setExpandedGameId] = useState<string | null>(null);
   const [touchdowns, setTouchdowns] = useState<TDScorer[]>([]);
   const [loadingTDs, setLoadingTDs] = useState(false);
 
+  // Fetch current week on mount
   useEffect(() => {
-    loadGames();
+    const initializeWeek = async () => {
+      try {
+        const data = await fetchCurrentWeek(season);
+        setWeek(data.current_week);
+      } catch (err) {
+        console.error('Failed to fetch current week, defaulting to 1:', err);
+        setWeek(1);
+      }
+    };
+    initializeWeek();
+  }, [season]);
+
+  useEffect(() => {
+    if (week !== null) {
+      loadGames();
+    }
   }, [season, week]);
 
   const loadGames = async () => {
+    if (week === null) return;
     setLoading(true);
     setError(null);
     try {
@@ -113,7 +130,7 @@ const WeeklyGames: React.FC = () => {
       <div style={{ marginBottom: '1.5rem' }}>
         <h2>🏈 NFL Schedule</h2>
         <p style={{ color: '#6c757d' }}>
-          Week {week} - {season} Season ({games.length} games)
+          Week {week ?? '...'} - {season} Season ({games.length} games)
         </p>
       </div>
 
@@ -129,9 +146,10 @@ const WeeklyGames: React.FC = () => {
         </select>
 
         <select 
-          value={week} 
+          value={week ?? 1} 
           onChange={(e) => setWeek(Number(e.target.value))}
           style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+          disabled={week === null}
         >
           {Array.from({ length: 18 }, (_, i) => i + 1).map(w => (
             <option key={w} value={w}>Week {w}</option>
@@ -353,7 +371,7 @@ const WeeklyGames: React.FC = () => {
         </div>
       )}
 
-      {!loading && !error && games.length === 0 && (
+      {!loading && !error && games.length === 0 && week !== null && (
         <div style={{ padding: '2rem', textAlign: 'center', color: '#6c757d' }}>
           <p>No games scheduled for Week {week} of the {season} season.</p>
         </div>

@@ -94,7 +94,7 @@ const EditPick: React.FC = () => {
       
       setSuccess('Pick updated successfully!');
       setTimeout(() => {
-        navigate('/week-detail');
+        navigate('/weekly-games');
       }, 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update pick');
@@ -104,7 +104,7 @@ const EditPick: React.FC = () => {
   };
 
   const handleCancel = () => {
-    navigate('/week-detail');
+    navigate('/weekly-games');
   };
 
   if (loading) {
@@ -119,8 +119,8 @@ const EditPick: React.FC = () => {
     return (
       <div className="edit-pick-container">
         <div className="error-message">{error}</div>
-        <button onClick={() => navigate('/week-detail')} className="btn-back">
-          ← Back to Week Detail
+        <button onClick={() => navigate('/weekly-games')} className="btn-back">
+          ← Back to Weekly Games
         </button>
       </div>
     );

@@ -1,0 +1,40 @@
+/* Modal overrides for dark theme */
+.modalContainer {
+  color: #333 !important;
+}
+
+.modalContainer h2,
+.modalContainer h3,
+.modalContainer h4,
+.modalContainer h5,
+.modalContainer h6 {
+  color: #333 !important;
+}
+
+.modalContainer .playerName {
+  color: #333 !important;
+}
+
+.modalContainer .sectionHeading {
+  color: #666 !important;
+}
+
+.modalContainer table {
+  color: #333 !important;
+}
+
+.modalContainer th {
+  color: #333 !important;
+}
+
+.modalContainer td {
+  color: #333 !important;
+}
+
+.modalContainer .cardLabel {
+  color: #666 !important;
+}
+
+.modalContainer .cardValue {
+  color: #333 !important;
+}

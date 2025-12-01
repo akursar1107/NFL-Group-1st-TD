@@ -47,7 +47,7 @@ const AdminDashboard: React.FC = () => {
 
   const handleGradeWeek = () => {
     if (stats) {
-      navigate(`/week-detail?week=${stats.current_week}&season=${season}`);
+      navigate(`/weekly-games?week=${stats.current_week}&season=${season}`);
     }
   };
 
@@ -217,35 +217,15 @@ const AdminDashboard: React.FC = () => {
       <div className="navigation-section">
         <h3>Admin Tools</h3>
         <div className="navigation-grid">
-          <div className="nav-card" onClick={() => navigate('/standings')}>
-            <div className="nav-icon">📊</div>
-            <div className="nav-title">Standings</div>
-            <div className="nav-description">View league standings and rankings</div>
+          <div className="nav-card" onClick={() => navigate('/edit-users')}>
+            <div className="nav-icon">👥</div>
+            <div className="nav-title">Edit Users</div>
+            <div className="nav-description">Manage league members</div>
           </div>
-          <div className="nav-card" onClick={() => navigate('/best-bets')}>
-            <div className="nav-icon">💰</div>
-            <div className="nav-title">Best Bets</div>
-            <div className="nav-description">Find positive EV opportunities</div>
-          </div>
-          <div className="nav-card" onClick={() => navigate('/weekly-games')}>
-            <div className="nav-icon">🏈</div>
-            <div className="nav-title">Weekly Games</div>
-            <div className="nav-description">View games by week</div>
-          </div>
-          <div className="nav-card" onClick={() => navigate('/analysis')}>
-            <div className="nav-icon">📈</div>
-            <div className="nav-title">Analysis</div>
-            <div className="nav-description">Player stats and trends</div>
-          </div>
-          <div className="nav-card" onClick={() => navigate('/all-picks')}>
-            <div className="nav-icon">📋</div>
-            <div className="nav-title">All Picks</div>
-            <div className="nav-description">Manage all league picks</div>
-          </div>
-          <div className="nav-card" onClick={() => navigate('/new-pick')}>
-            <div className="nav-icon">➕</div>
-            <div className="nav-title">New Pick</div>
-            <div className="nav-description">Add a new pick</div>
+          <div className="nav-card" onClick={() => navigate('/grade-picks')}>
+            <div className="nav-icon">⚖️</div>
+            <div className="nav-title">Grade Picks</div>
+            <div className="nav-description">Force grade pending picks</div>
           </div>
         </div>
       </div>

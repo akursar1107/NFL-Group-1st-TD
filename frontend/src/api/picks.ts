@@ -57,6 +57,7 @@ export interface Game {
   game_date: string | null;
   game_time: string | null;
   is_final: boolean;
+  is_standalone?: boolean;
 }
 
 export const fetchPicks = async (season?: number, week?: number, userId?: number): Promise<PicksResponse> => {
@@ -125,9 +126,10 @@ export const fetchUsers = async (): Promise<{ users: User[] }> => {
   return response.json();
 };
 
-export const fetchGames = async (season: number = 2025, week?: number): Promise<{ games: Game[] }> => {
+export const fetchGames = async (season: number = 2025, week?: number, standaloneOnly: boolean = false): Promise<{ games: Game[] }> => {
   const params = new URLSearchParams({ season: season.toString() });
   if (week) params.append('week', week.toString());
+  if (standaloneOnly) params.append('standalone', 'true');
   
   const url = `${API_BASE_URL}/api/games?${params.toString()}`;
   const response = await fetch(url);

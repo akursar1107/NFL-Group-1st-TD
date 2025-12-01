@@ -4,11 +4,25 @@ Games API endpoints - View games, weekly games, week details
 from flask import request, jsonify
 from datetime import datetime
 from . import api_bp
-from ...data_loader import load_data_with_cache_web
+from ...data_loader import load_data_with_cache_web, get_current_nfl_week
 from ...models import User, Game, Pick as PickModel
 from ... import db
 from nfl_core.stats import get_first_td_scorers
 import polars as pl
+
+
+@api_bp.route('/current-week', methods=['GET'])
+def get_current_week():
+    """Get the current NFL week based on today's date"""
+    season = request.args.get('season', 2025, type=int)
+    try:
+        current_week = get_current_nfl_week(season)
+        return jsonify({
+            'current_week': current_week,
+            'season': season
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e), 'current_week': 1}), 500
 
 
 @api_bp.route('/weekly-games', methods=['GET'])
@@ -238,12 +252,18 @@ def get_week_detail():
 def get_games():
     season = request.args.get('season', 2025, type=int)
     week = request.args.get('week', type=int)
+    # Flask doesn't parse 'true'/'false' strings as bool automatically
+    standalone_param = request.args.get('standalone', 'false').lower()
+    standalone_only = standalone_param in ('true', '1', 'yes')
     
     try:
         query = Game.query.filter_by(season=season)
         
         if week:
             query = query.filter_by(week=week)
+        
+        if standalone_only:
+            query = query.filter_by(is_standalone=True)
         
         games = query.order_by(Game.week, Game.game_date, Game.game_time).all()
         
@@ -259,7 +279,8 @@ def get_games():
                 'away_team': game.away_team,
                 'game_date': game.game_date.isoformat() if game.game_date else None,
                 'game_time': game.game_time.isoformat() if game.game_time else None,
-                'is_final': game.is_final
+                'is_final': game.is_final,
+                'is_standalone': game.is_standalone
             })
         
         return jsonify({'games': games_data}), 200
@@ -282,6 +303,125 @@ def get_users():
         
         return jsonify({'users': users_data}), 200
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/users/all', methods=['GET'])
+def get_all_users():
+    """Get all users including inactive ones"""
+    try:
+        users = User.query.order_by(User.username).all()
+        
+        users_data = []
+        for user in users:
+            users_data.append({
+                'id': user.id,
+                'username': user.username,
+                'display_name': user.display_name or user.username,
+                'email': user.email,
+                'is_active': user.is_active
+            })
+        
+        return jsonify({'users': users_data}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/users', methods=['POST'])
+def create_user():
+    """Create a new user"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        if not data.get('username') or not data.get('email'):
+            return jsonify({'error': 'Username and email are required'}), 400
+        
+        # Check if username already exists
+        existing = User.query.filter_by(username=data['username']).first()
+        if existing:
+            return jsonify({'error': 'Username already exists'}), 400
+        
+        # Create new user
+        new_user = User(
+            username=data['username'],
+            email=data['email'],
+            display_name=data.get('display_name', data['username']),
+            is_active=data.get('is_active', True)
+        )
+        
+        db.session.add(new_user)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'User created successfully',
+            'user': {
+                'id': new_user.id,
+                'username': new_user.username,
+                'display_name': new_user.display_name,
+                'email': new_user.email,
+                'is_active': new_user.is_active
+            }
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/users/<int:user_id>', methods=['PUT'])
+def update_user(user_id):
+    """Update an existing user"""
+    try:
+        user = User.query.get_or_404(user_id)
+        data = request.get_json()
+        
+        # Check if new username conflicts with another user
+        if 'username' in data and data['username'] != user.username:
+            existing = User.query.filter_by(username=data['username']).first()
+            if existing:
+                return jsonify({'error': 'Username already exists'}), 400
+            user.username = data['username']
+        
+        if 'email' in data:
+            user.email = data['email']
+        if 'display_name' in data:
+            user.display_name = data['display_name']
+        if 'is_active' in data:
+            user.is_active = data['is_active']
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'User updated successfully',
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'display_name': user.display_name,
+                'email': user.email,
+                'is_active': user.is_active
+            }
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/users/<int:user_id>', methods=['DELETE'])
+def delete_user(user_id):
+    """Delete a user and all their picks"""
+    try:
+        user = User.query.get_or_404(user_id)
+        username = user.username
+        
+        # Delete user (cascade will delete picks and bankroll history)
+        db.session.delete(user)
+        db.session.commit()
+        
+        return jsonify({
+            'message': f'User "{username}" deleted successfully'
+        }), 200
+    except Exception as e:
+        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 

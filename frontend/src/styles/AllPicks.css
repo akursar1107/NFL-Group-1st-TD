@@ -2,6 +2,8 @@
   max-width: 1600px;
   margin: 0 auto;
   padding: 20px;
+  background-color: #2a2a2a;
+  min-height: calc(100vh - 60px);
 }
 
 .all-picks-header {
@@ -14,7 +16,7 @@
 .all-picks-header h1 {
   margin: 0;
   font-size: 2rem;
-  color: #2c3e50;
+  color: #e0e0e0;
 }
 
 .season-selector {
@@ -25,15 +27,17 @@
 
 .season-selector label {
   font-weight: bold;
-  color: #495057;
+  color: #b09613;
 }
 
 .season-selector select {
   padding: 8px 15px;
-  border: 1px solid #ced4da;
+  border: 1px solid #4a4a4a;
   border-radius: 5px;
   font-size: 1rem;
   cursor: pointer;
+  background-color: #3a3a3a;
+  color: #e0e0e0;
 }
 
 /* Stats Summary */
@@ -45,17 +49,17 @@
 }
 
 .stat-card {
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
+  background-color: #3a3a3a;
+  border: 1px solid #4a4a4a;
   border-radius: 8px;
   padding: 15px;
   text-align: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .stat-label {
   font-size: 0.85rem;
-  color: #6c757d;
+  color: #b09613;
   font-weight: 600;
   margin-bottom: 8px;
   text-transform: uppercase;
@@ -64,11 +68,11 @@
 .stat-value {
   font-size: 1.5rem;
   font-weight: bold;
-  color: #212529;
+  color: #e0e0e0;
 }
 
 .stat-wins {
-  color: #28a745;
+  color: #13b047;
 }
 
 .stat-losses {
@@ -81,8 +85,8 @@
 
 /* Filters Section */
 .filters-section {
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
+  background-color: #3a3a3a;
+  border: 1px solid #4a4a4a;
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 20px;
@@ -100,23 +104,24 @@
 
 .filter-group label {
   font-weight: 600;
-  color: #495057;
+  color: #e0e0e0;
   margin-bottom: 5px;
   font-size: 0.9rem;
 }
 
 .filter-group select {
   padding: 8px 12px;
-  border: 1px solid #ced4da;
+  border: 1px solid #4a4a4a;
   border-radius: 5px;
   font-size: 0.95rem;
   cursor: pointer;
-  background-color: white;
+  background-color: #2a2a2a;
+  color: #e0e0e0;
 }
 
 .btn-reset {
   padding: 8px 20px;
-  background-color: #6c757d;
+  background-color: #5a5a5a;
   color: white;
   border: none;
   border-radius: 5px;
@@ -128,15 +133,15 @@
 }
 
 .btn-reset:hover {
-  background-color: #5a6268;
+  background-color: #6a6a6a;
 }
 
 /* Table */
 .table-container {
   overflow-x: auto;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  background-color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  background-color: #2a2a2a;
 }
 
 .picks-table {
@@ -148,12 +153,13 @@
 .picks-table td {
   padding: 12px;
   text-align: left;
-  border-bottom: 1px solid #dee2e6;
+  border-bottom: 1px solid #4a4a4a;
+  color: #e0e0e0;
 }
 
 .picks-table th {
-  background-color: #343a40;
-  color: white;
+  background-color: #2c3e50;
+  color: #fff;
   font-weight: bold;
   position: sticky;
   top: 0;
@@ -167,33 +173,38 @@
 }
 
 .picks-table th.sortable:hover {
-  background-color: #23272b;
+  background-color: #34495e;
+}
+
+.picks-table tbody tr {
+  background-color: #2a2a2a;
 }
 
 .picks-table tbody tr:hover {
-  background-color: #f8f9fa;
+  background-color: #3a3a3a;
 }
 
 .game-cell {
   font-size: 0.9rem;
-  color: #495057;
+  color: #e0e0e0;
   white-space: nowrap;
 }
 
 .player-cell {
   font-weight: 600;
-  color: #212529;
+  color: #e0e0e0;
 }
 
 .odds-cell {
   font-family: 'Courier New', monospace;
   font-weight: bold;
+  color: #e0e0e0;
 }
 
 .no-picks {
   text-align: center;
   padding: 40px;
-  color: #6c757d;
+  color: #b0b0b0;
   font-style: italic;
 }
 
@@ -212,7 +223,7 @@
 }
 
 .pick-type-badge.atts {
-  background-color: #6f42c1;
+  background-color: #e91e63;
   color: white;
 }
 
@@ -226,7 +237,7 @@
 }
 
 .result-win {
-  background-color: #28a745;
+  background-color: #13b047;
   color: white;
 }
 
@@ -237,7 +248,7 @@
 
 .result-pending {
   background-color: #ffc107;
-  color: #212529;
+  color: #000;
 }
 
 .result-push {
@@ -247,7 +258,7 @@
 
 /* Payout Colors */
 .payout-positive {
-  color: #28a745;
+  color: #13b047;
   font-weight: bold;
 }
 
@@ -257,15 +268,20 @@
 }
 
 .payout-neutral {
-  color: #6c757d;
+  color: #b0b0b0;
   font-weight: bold;
 }
 
 /* Edit Button */
-.btn-edit-small {
+.action-buttons-cell {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.btn-edit-small,
+.btn-delete-small {
   padding: 4px 8px;
-  background-color: #007bff;
-  color: white;
   border: none;
   border-radius: 3px;
   cursor: pointer;
@@ -273,8 +289,22 @@
   transition: background-color 0.3s;
 }
 
+.btn-edit-small {
+  background-color: #007bff;
+  color: white;
+}
+
 .btn-edit-small:hover {
   background-color: #0056b3;
+}
+
+.btn-delete-small {
+  background-color: #dc3545;
+  color: white;
+}
+
+.btn-delete-small:hover {
+  background-color: #c82333;
 }
 
 /* Loading and Error */
@@ -283,13 +313,13 @@
   text-align: center;
   padding: 40px;
   font-size: 1.2rem;
-  color: #6c757d;
+  color: #b0b0b0;
 }
 
 .error-message {
   color: #dc3545;
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
+  background-color: #3a2a2a;
+  border: 1px solid #5a3a3a;
   border-radius: 8px;
 }
 

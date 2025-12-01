@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchPicks, Pick } from '../api/picks';
+import { fetchPicks, Pick, deletePick } from '../api/picks';
 import { fetchUsers, User } from '../api/picks';
 import '../styles/AllPicks.css';
 
@@ -127,6 +127,19 @@ const AllPicks: React.FC = () => {
     } else {
       setSortBy(column);
       setSortOrder('asc');
+    }
+  };
+
+  const handleDeletePick = async (pickId: number, playerName: string) => {
+    const confirmMessage = `Are you sure you want to delete the pick for ${playerName}? This action cannot be undone.`;
+    if (!window.confirm(confirmMessage)) return;
+
+    try {
+      await deletePick(pickId);
+      // Reload picks after deletion
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete pick');
     }
   };
 
@@ -331,12 +344,22 @@ const AllPicks: React.FC = () => {
                     {formatPayout(pick.payout)}
                   </td>
                   <td>
-                    <button
-                      onClick={() => navigate(`/edit-pick/${pick.id}`)}
-                      className="btn-edit-small"
-                    >
-                      ✏️
-                    </button>
+                    <div className="action-buttons-cell">
+                      <button
+                        onClick={() => navigate(`/edit-pick/${pick.id}`)}
+                        className="btn-edit-small"
+                        title="Edit pick"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => handleDeletePick(pick.id, pick.player_name)}
+                        className="btn-delete-small"
+                        title="Delete pick"
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))

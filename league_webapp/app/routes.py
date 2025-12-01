@@ -818,6 +818,13 @@ def best_bets_scanner(season):
 @bp.route('/analysis/<int:season>')
 def analysis_page(season):
     """
+    FLASK TEMPLATE VERSION - Served at localhost:5000/analysis
+    
+    ⚠️ WARNING: This is NOT used by the React app!
+    React app uses: league_webapp/app/blueprints/api/analysis.py
+    
+    If you're viewing localhost:3000, changes here won't show!
+    
     Analysis Page - Statistical research tools for First TD betting.
     Provides player research, team analysis, defense matchups, and trends.
     Public route available to all users.
@@ -1035,9 +1042,18 @@ def analysis_page(season):
             home_games = team_home_games.get(team, 0)
             away_games = team_away_games.get(team, 0)
             
-            pct = (ftd_count / games * 100) if games > 0 else 0
-            home_rate = (ftd_home / home_games * 100) if home_games > 0 else 0
-            away_rate = (ftd_away / away_games * 100) if away_games > 0 else 0
+            # DEBUG: Print ALL values for first team
+            if team == list(team_ftd_counts.keys())[0]:
+                print(f"\n=== DEBUG TEAM {team} ===")
+                print(f"ftd_count (raw): {ftd_count} (type: {type(ftd_count)})")
+                print(f"games (raw): {games} (type: {type(games)})")
+                print(f"Division: {ftd_count} / {games} = {ftd_count / games if games > 0 else 0}")
+                print(f"Times 100: {ftd_count / games * 100 if games > 0 else 0}")
+                print(f"Rounded: {round((ftd_count / games * 100), 1) if games > 0 else 0}")
+            
+            pct = round((ftd_count / games * 100), 1) if games > 0 else 0
+            home_rate = round((ftd_home / home_games * 100), 1) if home_games > 0 else 0
+            away_rate = round((ftd_away / away_games * 100), 1) if away_games > 0 else 0
             
             # Get red zone pass/run splits
             rz_pass_pct = team_rz_splits.get(team, {}).get('pass_pct', 0)

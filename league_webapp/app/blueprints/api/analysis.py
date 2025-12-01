@@ -25,6 +25,14 @@ import polars as pl
 
 @api_bp.route('/analysis', methods=['GET'])
 def get_analysis():
+    """
+    API ENDPOINT - Used by React app at localhost:3000
+    
+    ⚠️ Returns JSON data, NOT HTML
+    ⚠️ Percentages returned as numbers (91.7), not decimals (0.917)
+    
+    React component should display as: {value}% (NOT {value * 100}%)
+    """
     season = request.args.get('season', 2025, type=int)
     try:
         stats_data = get_nfl_stats_data(season, use_cache=True)
@@ -139,6 +147,45 @@ def get_analysis():
         
         team_data.sort(key=lambda x: x['success_pct'], reverse=True)
         
+        # Calculate defense stats (counts of TDs allowed by position)
+        defense_stats = {}
+        all_teams = set(schedule_df["home_team"].unique().to_list() + schedule_df["away_team"].unique().to_list())
+        for t in all_teams:
+            defense_stats[t] = {'WR': 0, 'RB': 0, 'TE': 0, 'QB': 0, 'Other': 0, 'Total': 0}
+        
+        games_df = schedule_df.filter(pl.col("game_id").is_in(list(first_td_map.keys())))
+        game_map = {row['game_id']: {'home': row['home_team'], 'away': row['away_team']} for row in games_df.select(['game_id', 'home_team', 'away_team']).to_dicts()}
+        
+        for game_id, data in first_td_map.items():
+            if game_id not in game_map: continue
+            
+            scorer_team = data['team']
+            player_id = data.get('player_id')
+            player_name = data['player']
+            
+            game_info = game_map[game_id]
+            if scorer_team == game_info['home']: defense_team = game_info['away']
+            elif scorer_team == game_info['away']: defense_team = game_info['home']
+            else: continue
+            
+            # Get position
+            pos = 'Other'
+            if roster_df is not None and roster_df.height > 0:
+                if player_id:
+                    player_rows = roster_df.filter(roster_df['gsis_id'] == player_id)
+                    if player_rows.height > 0 and 'position' in player_rows.columns:
+                        pos = player_rows[0, 'position'] or 'Other'
+                if pos == 'Other' and player_name:
+                    player_rows = roster_df.filter(roster_df['full_name'].str.to_lowercase() == player_name.lower())
+                    if player_rows.height > 0 and 'position' in player_rows.columns:
+                        pos = player_rows[0, 'position'] or 'Other'
+            
+            if pos not in ['WR', 'RB', 'TE', 'QB']: pos = 'Other'
+            
+            if defense_team in defense_stats:
+                defense_stats[defense_team][pos] += 1
+                defense_stats[defense_team]['Total'] += 1
+        
         # Build defense data as array with correct field names
         defense_data = []
         for team, rankings in defense_rankings.items():
@@ -153,7 +200,8 @@ def get_analysis():
                 'wr_rank': rankings.get('WR', 0),
                 'te_rank': rankings.get('TE', 0),
                 'avg_rank': avg_rank,
-                'funnel_type': funnel_defenses.get(team, 'Balanced')
+                'funnel_type': funnel_defenses.get(team, 'Balanced'),
+                'ftds_allowed': defense_stats.get(team, {}),
             })
         
         # Build trends data
@@ -205,11 +253,41 @@ def get_analysis():
             game_rows = schedule_df.filter(pl.col('game_id') == game_id)
             if game_rows.height > 0:
                 week = game_rows[0, 'week'] if 'week' in game_rows.columns else None
+                home_team = game_rows[0, 'home_team'] if 'home_team' in game_rows.columns else None
+                away_team = game_rows[0, 'away_team'] if 'away_team' in game_rows.columns else None
+                game_date = game_rows[0, 'gameday'] if 'gameday' in game_rows.columns else None
+                game_time = game_rows[0, 'gametime'] if 'gametime' in game_rows.columns else None
+                
                 player = ftd_info.get('player')
                 team = ftd_info.get('team')
                 
                 if team:
                     all_teams.add(team)
+                
+                # Determine if home or away and opponent
+                is_home = team == home_team
+                opponent = away_team if is_home else home_team
+                
+                # Determine if standalone based on gameday
+                is_standalone = False
+                if game_date:
+                    try:
+                        from datetime import datetime as dt_parser
+                        game_datetime = dt_parser.strptime(str(game_date), '%Y-%m-%d')
+                        day_of_week = game_datetime.weekday()  # 0=Monday, 6=Sunday
+                        
+                        # Standalone is any game that isn't Sunday afternoon
+                        if day_of_week != 6:
+                            # Mon-Sat games are all standalone
+                            is_standalone = True
+                        elif day_of_week == 6 and game_time:
+                            # Sunday games - check time
+                            hour = int(str(game_time).split(':')[0]) if ':' in str(game_time) else 0
+                            # SNF (8:20 PM or later) is standalone
+                            if hour >= 20:
+                                is_standalone = True
+                    except:
+                        pass
                 
                 # Get position from roster
                 position = None
@@ -229,7 +307,11 @@ def get_analysis():
                     'week': week,
                     'team': team,
                     'player': player,
-                    'position': position
+                    'position': position,
+                    'opponent': opponent,
+                    'is_home': is_home,
+                    'game_date': str(game_date) if game_date else None,
+                    'is_standalone': is_standalone
                 })
         
         history_data = {
@@ -264,9 +346,84 @@ def import_data():
     season = validated_data['season']
     
     try:
-        load_data_with_cache_web(season, use_cache=False)
-        return jsonify({ 'message': f'Data import for season {season} successful.' }), 200
+        # Load parquet data
+        schedule_df, pbp_df, roster_df = load_data_with_cache_web(season, use_cache=False)
+        
+        # Import games into database
+        from ...models import Game
+        from ... import db
+        from datetime import datetime
+        
+        games_added = 0
+        games_updated = 0
+        
+        for game_dict in schedule_df.to_dicts():
+            game_id = game_dict.get('game_id')
+            if not game_id:
+                continue
+            
+            # Check if game exists
+            existing_game = Game.query.filter_by(game_id=game_id).first()
+            
+            # Parse date and time
+            gameday_str = game_dict.get('gameday', '')
+            gametime_str = game_dict.get('gametime', '')
+            
+            try:
+                game_date = datetime.strptime(str(gameday_str), '%Y-%m-%d').date() if gameday_str else None
+            except:
+                game_date = None
+            
+            try:
+                game_time = datetime.strptime(str(gametime_str), '%H:%M').time() if gametime_str and ':' in str(gametime_str) else None
+            except:
+                game_time = None
+            
+            # Determine if standalone
+            is_standalone = False
+            if game_date:
+                day_of_week = game_date.weekday()  # 0=Monday, 6=Sunday
+                if day_of_week != 6:  # Not Sunday
+                    is_standalone = True
+                elif day_of_week == 6 and game_time:  # Sunday
+                    # SNF starts at 20:00 or later
+                    if game_time.hour >= 20:
+                        is_standalone = True
+            
+            if existing_game:
+                # Update existing game
+                existing_game.season = game_dict.get('season', season)
+                existing_game.week = game_dict.get('week')
+                existing_game.gameday = game_dict.get('gameday')
+                existing_game.game_date = game_date
+                existing_game.game_time = game_time
+                existing_game.home_team = game_dict.get('home_team')
+                existing_game.away_team = game_dict.get('away_team')
+                existing_game.is_standalone = is_standalone
+                games_updated += 1
+            else:
+                # Create new game
+                new_game = Game(
+                    game_id=game_id,
+                    season=game_dict.get('season', season),
+                    week=game_dict.get('week'),
+                    gameday=game_dict.get('gameday'),
+                    game_date=game_date,
+                    game_time=game_time,
+                    home_team=game_dict.get('home_team'),
+                    away_team=game_dict.get('away_team'),
+                    is_standalone=is_standalone
+                )
+                db.session.add(new_game)
+                games_added += 1
+        
+        db.session.commit()
+        
+        return jsonify({ 
+            'message': f'Data import for season {season} successful. Added {games_added} games, updated {games_updated} games.' 
+        }), 200
     except Exception as e:
+        db.session.rollback()
         return jsonify({ 'message': f'Import failed: {str(e)}' }), 500
 
 

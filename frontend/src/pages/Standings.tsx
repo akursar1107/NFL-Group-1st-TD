@@ -8,6 +8,49 @@ const Standings: React.FC = () => {
   const [season, setSeason] = useState(2025);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'} | null>({ key: 'total_bankroll', direction: 'desc' });
+
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'desc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'desc') {
+      direction = 'asc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedStandings = React.useMemo(() => {
+    if (!sortConfig) return standings;
+    
+    const sorted = [...standings].sort((a, b) => {
+      let aValue: number, bValue: number;
+      
+      if (sortConfig.key === 'ftd_bankroll') {
+        aValue = a.ftd_bankroll;
+        bValue = b.ftd_bankroll;
+      } else if (sortConfig.key === 'atts_bankroll') {
+        aValue = a.atts_bankroll;
+        bValue = b.atts_bankroll;
+      } else if (sortConfig.key === 'total_bankroll') {
+        aValue = a.ftd_bankroll + a.atts_bankroll;
+        bValue = b.ftd_bankroll + b.atts_bankroll;
+      } else {
+        return 0;
+      }
+      
+      return sortConfig.direction === 'desc' 
+        ? bValue - aValue
+        : aValue - bValue;
+    });
+    
+    return sorted;
+  }, [standings, sortConfig]);
+
+  const SortIcon: React.FC<{ columnKey: string }> = ({ columnKey }) => {
+    if (!sortConfig || sortConfig.key !== columnKey) {
+      return <span style={{ marginLeft: '0.25rem', opacity: 0.3 }}>↕</span>;
+    }
+    return <span style={{ marginLeft: '0.25rem' }}>{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>;
+  };
 
   useEffect(() => {
     loadStandings();
@@ -50,25 +93,43 @@ const Standings: React.FC = () => {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2rem' }}>
               <thead>
-                <tr style={{ borderBottom: '2px solid #ddd', background: '#f8f9fa' }}>
-                  <th style={{ padding: '0.75rem', textAlign: 'left' }}>Rank</th>
-                  <th style={{ padding: '0.75rem', textAlign: 'left' }}>Player</th>
-                  <th style={{ padding: '0.75rem', textAlign: 'center' }}>FTD Record</th>
-                  <th style={{ padding: '0.75rem', textAlign: 'center' }}>FTD Bankroll</th>
-                  <th style={{ padding: '0.75rem', textAlign: 'center' }}>ATTS Record</th>
-                  <th style={{ padding: '0.75rem', textAlign: 'center' }}>ATTS Bankroll</th>
-                  <th style={{ padding: '0.75rem', textAlign: 'center' }}>Total Picks</th>
+                <tr style={{ borderBottom: '2px solid #ddd', background: '#2c3e50' }}>
+                  <th style={{ padding: '0.75rem', textAlign: 'left', color: '#fff' }}>Rank</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'left', color: '#fff' }}>Player</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'center', color: '#fff' }}>FTD Record</th>
+                  <th 
+                    onClick={() => handleSort('ftd_bankroll')} 
+                    style={{ padding: '0.75rem', textAlign: 'center', color: '#fff', cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    FTD Bankroll<SortIcon columnKey="ftd_bankroll" />
+                  </th>
+                  <th style={{ padding: '0.75rem', textAlign: 'center', color: '#fff' }}>ATTS Record</th>
+                  <th 
+                    onClick={() => handleSort('atts_bankroll')} 
+                    style={{ padding: '0.75rem', textAlign: 'center', color: '#fff', cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    ATTS Bankroll<SortIcon columnKey="atts_bankroll" />
+                  </th>
+                  <th 
+                    onClick={() => handleSort('total_bankroll')} 
+                    style={{ padding: '0.75rem', textAlign: 'center', color: '#fff', cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    Total Bankroll<SortIcon columnKey="total_bankroll" />
+                  </th>
+                  <th style={{ padding: '0.75rem', textAlign: 'center', color: '#fff' }}>Total Picks</th>
                 </tr>
               </thead>
               <tbody>
-                {standings.map((standing, idx) => (
-                  <tr key={standing.user_id} style={{ borderBottom: '1px solid #ddd' }}>
-                    <td style={{ padding: '0.75rem', fontWeight: 'bold' }}>{idx + 1}</td>
+                {sortedStandings.map((standing, idx) => {
+                  const totalBankroll = standing.ftd_bankroll + standing.atts_bankroll;
+                  return (
+                  <tr key={standing.user_id} style={{ borderBottom: '1px solid #4a4a4a', background: '#2a2a2a' }}>
+                    <td style={{ padding: '0.75rem', fontWeight: 'bold', color: '#e0e0e0' }}>{idx + 1}</td>
                     <td style={{ padding: '0.75rem' }}>
                       <Link 
                         to={`/user/${standing.user_id}`}
                         style={{ 
-                          color: '#007bff', 
+                          color: '#b09613', 
                           textDecoration: 'none',
                           fontWeight: '500'
                         }}
@@ -79,14 +140,14 @@ const Standings: React.FC = () => {
                       </Link>
                     </td>
                     <td style={{ padding: '0.75rem', textAlign: 'center' }}>
-                      <span style={{ padding: '0.25rem 0.5rem', background: '#d4edda', borderRadius: '4px', marginRight: '0.25rem' }}>
+                      <span style={{ padding: '0.25rem 0.5rem', background: '#13b047', color: '#fff', borderRadius: '4px', marginRight: '0.25rem', fontWeight: 'bold' }}>
                         {standing.ftd_wins}W
                       </span>
-                      <span style={{ padding: '0.25rem 0.5rem', background: '#f8d7da', borderRadius: '4px', marginRight: '0.25rem' }}>
+                      <span style={{ padding: '0.25rem 0.5rem', background: '#dc3545', color: '#fff', borderRadius: '4px', marginRight: '0.25rem', fontWeight: 'bold' }}>
                         {standing.ftd_losses}L
                       </span>
                       {standing.ftd_pending > 0 && (
-                        <span style={{ padding: '0.25rem 0.5rem', background: '#e2e3e5', borderRadius: '4px' }}>
+                        <span style={{ padding: '0.25rem 0.5rem', background: '#6c757d', color: '#fff', borderRadius: '4px', fontWeight: 'bold' }}>
                           {standing.ftd_pending}P
                         </span>
                       )}
@@ -95,83 +156,92 @@ const Standings: React.FC = () => {
                       padding: '0.75rem', 
                       textAlign: 'center', 
                       fontWeight: 'bold',
-                      color: standing.ftd_bankroll > 0 ? '#28a745' : standing.ftd_bankroll < 0 ? '#dc3545' : '#000'
+                      color: standing.ftd_bankroll > 0 ? '#13b047' : standing.ftd_bankroll < 0 ? '#dc3545' : '#e0e0e0'
                     }}>
                       {standing.ftd_bankroll.toFixed(2)}u
                     </td>
                     <td style={{ padding: '0.75rem', textAlign: 'center' }}>
                       {standing.atts_wins + standing.atts_losses + standing.atts_pending > 0 ? (
                         <>
-                          <span style={{ padding: '0.25rem 0.5rem', background: '#d4edda', borderRadius: '4px', marginRight: '0.25rem' }}>
+                          <span style={{ padding: '0.25rem 0.5rem', background: '#13b047', color: '#fff', borderRadius: '4px', marginRight: '0.25rem', fontWeight: 'bold' }}>
                             {standing.atts_wins}W
                           </span>
-                          <span style={{ padding: '0.25rem 0.5rem', background: '#f8d7da', borderRadius: '4px', marginRight: '0.25rem' }}>
+                          <span style={{ padding: '0.25rem 0.5rem', background: '#dc3545', color: '#fff', borderRadius: '4px', marginRight: '0.25rem', fontWeight: 'bold' }}>
                             {standing.atts_losses}L
                           </span>
                           {standing.atts_pending > 0 && (
-                            <span style={{ padding: '0.25rem 0.5rem', background: '#e2e3e5', borderRadius: '4px' }}>
+                            <span style={{ padding: '0.25rem 0.5rem', background: '#6c757d', color: '#fff', borderRadius: '4px', fontWeight: 'bold' }}>
                               {standing.atts_pending}P
                             </span>
                           )}
                         </>
                       ) : (
-                        <span style={{ color: '#6c757d' }}>-</span>
+                        <span style={{ color: '#999' }}>-</span>
                       )}
                     </td>
                     <td style={{ 
                       padding: '0.75rem', 
                       textAlign: 'center', 
                       fontWeight: 'bold',
-                      color: standing.atts_bankroll > 0 ? '#28a745' : standing.atts_bankroll < 0 ? '#dc3545' : '#6c757d'
+                      color: standing.atts_bankroll > 0 ? '#13b047' : standing.atts_bankroll < 0 ? '#dc3545' : '#999'
                     }}>
                       {standing.atts_wins + standing.atts_losses + standing.atts_pending > 0 
                         ? `${standing.atts_bankroll.toFixed(2)}u` 
                         : '-'}
                     </td>
-                    <td style={{ padding: '0.75rem', textAlign: 'center' }}>{standing.total_picks}</td>
+                    <td style={{ 
+                      padding: '0.75rem', 
+                      textAlign: 'center', 
+                      fontWeight: 'bold',
+                      color: totalBankroll > 0 ? '#13b047' : totalBankroll < 0 ? '#dc3545' : '#e0e0e0'
+                    }}>
+                      {totalBankroll.toFixed(2)}u
+                    </td>
+                    <td style={{ padding: '0.75rem', textAlign: 'center', color: '#e0e0e0' }}>{standing.total_picks}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
           {stats && (
             <div>
-              <h4>Quick Stats</h4>
+              <h4 style={{ color: '#e0e0e0' }}>Quick Stats</h4>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                <div style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '8px', textAlign: 'center' }}>
-                  <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem' }}>{stats.total_players}</h5>
-                  <p style={{ margin: 0, color: '#6c757d' }}>Players</p>
+                <div style={{ background: '#2a2a2a', padding: '1rem', borderRadius: '8px', textAlign: 'center', border: '1px solid #4a4a4a' }}>
+                  <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem', color: '#e0e0e0' }}>{stats.total_players}</h5>
+                  <p style={{ margin: 0, color: '#999' }}>Players</p>
                 </div>
-                <div style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '8px', textAlign: 'center' }}>
-                  <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem' }}>{stats.total_ftd_picks}</h5>
-                  <p style={{ margin: 0, color: '#6c757d' }}>FTD Picks</p>
+                <div style={{ background: '#2a2a2a', padding: '1rem', borderRadius: '8px', textAlign: 'center', border: '1px solid #4a4a4a' }}>
+                  <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem', color: '#e0e0e0' }}>{stats.total_ftd_picks}</h5>
+                  <p style={{ margin: 0, color: '#999' }}>FTD Picks</p>
                 </div>
-                <div style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '8px', textAlign: 'center' }}>
-                  <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem' }}>{stats.total_wins}</h5>
-                  <p style={{ margin: 0, color: '#6c757d' }}>Total Wins</p>
+                <div style={{ background: '#2a2a2a', padding: '1rem', borderRadius: '8px', textAlign: 'center', border: '1px solid #4a4a4a' }}>
+                  <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem', color: '#e0e0e0' }}>{stats.total_wins}</h5>
+                  <p style={{ margin: 0, color: '#999' }}>Total Wins</p>
                 </div>
-                <div style={{ background: '#f8f9fa', padding: '1rem', borderRadius: '8px', textAlign: 'center' }}>
-                  <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem' }}>{stats.win_rate.toFixed(1)}%</h5>
-                  <p style={{ margin: 0, color: '#6c757d' }}>Win Rate</p>
+                <div style={{ background: '#2a2a2a', padding: '1rem', borderRadius: '8px', textAlign: 'center', border: '1px solid #4a4a4a' }}>
+                  <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem', color: '#e0e0e0' }}>{stats.win_rate.toFixed(1)}%</h5>
+                  <p style={{ margin: 0, color: '#999' }}>Win Rate</p>
                 </div>
-                <div style={{ background: '#d4edda', padding: '1rem', borderRadius: '8px', textAlign: 'center', border: '1px solid #c3e6cb' }}>
-                  <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem', color: '#28a745' }}>
+                <div style={{ background: '#13b04720', padding: '1rem', borderRadius: '8px', textAlign: 'center', border: '1px solid #13b047' }}>
+                  <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem', color: '#13b047' }}>
                     {stats.league_total_bankroll.toFixed(2)}u
                   </h5>
-                  <p style={{ margin: 0, color: '#155724' }}>League Total Bankroll</p>
+                  <p style={{ margin: 0, color: '#13b047' }}>League Total Bankroll</p>
                 </div>
-                <div style={{ background: '#cce5ff', padding: '1rem', borderRadius: '8px', textAlign: 'center', border: '1px solid #b8daff' }}>
-                  <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem', color: '#004085' }}>
+                <div style={{ background: '#0056b320', padding: '1rem', borderRadius: '8px', textAlign: 'center', border: '1px solid #007bff' }}>
+                  <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem', color: '#6db3ff' }}>
                     {stats.league_ftd_bankroll.toFixed(2)}u
                   </h5>
-                  <p style={{ margin: 0, color: '#004085' }}>League FTD Bankroll</p>
+                  <p style={{ margin: 0, color: '#6db3ff' }}>League FTD Bankroll</p>
                 </div>
-                <div style={{ background: '#fff3cd', padding: '1rem', borderRadius: '8px', textAlign: 'center', border: '1px solid #ffeeba' }}>
-                  <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem', color: '#856404' }}>
+                <div style={{ background: '#b0961320', padding: '1rem', borderRadius: '8px', textAlign: 'center', border: '1px solid #b09613' }}>
+                  <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '1.5rem', color: '#b09613' }}>
                     {stats.league_atts_bankroll.toFixed(2)}u
                   </h5>
-                  <p style={{ margin: 0, color: '#856404' }}>League ATTS Bankroll</p>
+                  <p style={{ margin: 0, color: '#b09613' }}>League ATTS Bankroll</p>
                 </div>
               </div>
             </div>
