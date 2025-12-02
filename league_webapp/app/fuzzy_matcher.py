@@ -56,6 +56,8 @@ class NameMatcher:
         'flash': 'josh gordon',
         'megatron': 'calvin johnson',
         'beast mode': 'marshawn lynch',
+        'arsb': 'amon-ra st brown',
+        'sun god': 'amon-ra st brown',
     }
     
     # Suffixes to normalize
