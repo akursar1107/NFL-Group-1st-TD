@@ -335,7 +335,20 @@ const AllPicks: React.FC = () => {
                       {pick.pick_type}
                     </span>
                   </td>
-                  <td className="player-cell">{pick.player_name}</td>
+                  <td className="player-cell">
+                    {pick.full_player_name && pick.full_player_name.toLowerCase() !== pick.player_name.toLowerCase()
+                      ? (
+                        <>
+                          <span className="full-player-name">{pick.full_player_name}</span>
+                          <span className="original-player-name">({pick.player_name})</span>
+                        </>
+                      ) : (
+                        pick.full_player_name || pick.player_name
+                      )}
+                  </td>
+                  {/* Display enriched full player name if available */}
+                  {/* If full_player_name exists and differs (case-insensitive) show it, otherwise original */}
+                  {/* Replace existing column with enriched name */}
                   <td>{pick.player_position}</td>
                   <td className="odds-cell">{formatOdds(pick.odds)}</td>
                   <td>${pick.stake.toFixed(2)}</td>

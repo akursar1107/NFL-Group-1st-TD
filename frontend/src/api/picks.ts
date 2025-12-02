@@ -9,6 +9,7 @@ export interface Pick {
   week: number;
   pick_type: string;
   player_name: string;
+  full_player_name?: string | null;
   player_position: string;
   odds: number;
   stake: number;
@@ -65,6 +66,8 @@ export const fetchPicks = async (season?: number, week?: number, userId?: number
   if (season) params.append('season', season.toString());
   if (week) params.append('week', week.toString());
   if (userId) params.append('user_id', userId.toString());
+  // Always request full names for display enrichment
+  params.append('include_full_names', 'true');
   
   const url = `${API_BASE_URL}/api/picks?${params.toString()}`;
   const response = await fetch(url);
