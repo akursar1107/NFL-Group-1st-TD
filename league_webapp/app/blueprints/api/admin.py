@@ -456,3 +456,40 @@ def review_match(decision_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/delete-all-picks', methods=['DELETE'])
+def delete_all_picks():
+    """Delete all picks for a specific season"""
+    from ...models import MatchDecision
+    
+    season = request.args.get('season', 2025, type=int)
+    
+    try:
+        # Get all picks for the season
+        picks_to_delete = db.session.query(PickModel).join(Game).filter(
+            Game.season == season
+        ).all()
+        
+        deleted_count = len(picks_to_delete)
+        
+        # Delete associated match decisions first (due to foreign key)
+        for pick in picks_to_delete:
+            MatchDecision.query.filter_by(pick_id=pick.id).delete()
+        
+        # Delete the picks
+        db.session.query(PickModel).filter(
+            PickModel.id.in_([p.id for p in picks_to_delete])
+        ).delete(synchronize_session=False)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': f'Successfully deleted {deleted_count} picks for {season} season',
+            'deleted_count': deleted_count,
+            'season': season
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500

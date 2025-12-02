@@ -13,6 +13,8 @@ const AdminDashboard: React.FC = () => {
   const [importMessage, setImportMessage] = useState<string>('');
   const [regradeLoading, setRegradeLoading] = useState<boolean>(false);
   const [regradeMessage, setRegradeMessage] = useState<string>('');
+  const [deleteLoading, setDeleteLoading] = useState<boolean>(false);
+  const [deleteMessage, setDeleteMessage] = useState<string>('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -78,6 +80,39 @@ const AdminDashboard: React.FC = () => {
       setRegradeMessage(err instanceof Error ? err.message : 'Re-grading failed');
     } finally {
       setRegradeLoading(false);
+    }
+  };
+
+  const handleDeleteAllPicks = async () => {
+    if (!window.confirm('⚠️ DELETE ALL PICKS for the entire season? This action CANNOT be undone!')) {
+      return;
+    }
+
+    // Second confirmation
+    if (!window.confirm('Are you absolutely sure? This will permanently delete all picks!')) {
+      return;
+    }
+
+    setDeleteLoading(true);
+    setDeleteMessage('');
+    try {
+      const response = await fetch(`http://localhost:5000/api/delete-all-picks?season=${season}`, {
+        method: 'DELETE',
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Delete failed');
+      }
+      
+      setDeleteMessage(`✅ Deleted ${data.deleted_count} picks`);
+      // Reload stats after deletion
+      await loadDashboardStats();
+    } catch (err) {
+      setDeleteMessage(err instanceof Error ? err.message : 'Delete failed');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -182,18 +217,19 @@ const AdminDashboard: React.FC = () => {
           >
             {importLoading ? 'Importing...' : 'Import NFL Data'}
           </button>
-          <button className="action-btn" onClick={() => navigate('/all-picks')}>
-            View All Picks
-          </button>
-          <button className="action-btn" onClick={() => navigate('/new-pick')}>
-            Add New Pick
-          </button>
           <button 
             className="action-btn warning" 
             onClick={handleRegradeAll}
             disabled={regradeLoading}
           >
             {regradeLoading ? 'Re-grading...' : 'Re-grade All Picks'}
+          </button>
+          <button 
+            className="action-btn danger" 
+            onClick={handleDeleteAllPicks}
+            disabled={deleteLoading}
+          >
+            {deleteLoading ? 'Deleting...' : 'Delete All Picks'}
           </button>
         </div>
         {importMessage && (
@@ -204,6 +240,11 @@ const AdminDashboard: React.FC = () => {
         {regradeMessage && (
           <p className={`import-message ${regradeMessage.includes('failed') || regradeMessage.includes('Error') ? 'error' : 'success'}`}>
             {regradeMessage}
+          </p>
+        )}
+        {deleteMessage && (
+          <p className={`import-message ${deleteMessage.includes('failed') || deleteMessage.includes('Error') ? 'error' : 'success'}`}>
+            {deleteMessage}
           </p>
         )}
       </div>
