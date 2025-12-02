@@ -24,7 +24,7 @@ class GradingService:
         self.matcher = NameMatcher(auto_accept_threshold=auto_accept_threshold)
         self.medium_threshold = medium_confidence_threshold
     
-    def grade_week(self, week_num, season=2025, use_cache=None):
+    def grade_week(self, week_num, season=2025, use_cache=None, force_regrade=False):
         """
         Grade all picks for a specific week
         
@@ -32,6 +32,7 @@ class GradingService:
             week_num: Week number to grade
             season: NFL season year
             use_cache: Whether to use cached data (None = auto-detect)
+            force_regrade: If True, re-grade already graded picks
             
         Returns:
             dict with grading results and statistics
@@ -65,11 +66,11 @@ class GradingService:
             }
         
         # Grade FTD picks
-        ftd_results = self._grade_ftd_picks(games, first_td_map)
+        ftd_results = self._grade_ftd_picks(games, first_td_map, force_regrade=force_regrade)
         
         # Grade ATTS picks
         all_td_map = get_all_td_scorers(pbp_df, target_game_ids=game_ids, roster_df=roster_df)
-        atts_results = self._grade_atts_picks(games, all_td_map) if all_td_map else {
+        atts_results = self._grade_atts_picks(games, all_td_map, force_regrade=force_regrade) if all_td_map else {
             'graded': 0, 'won': 0, 'lost': 0, 'needs_review': 0
         }
         
@@ -89,12 +90,13 @@ class GradingService:
             'total_needs_review': ftd_results['needs_review'] + atts_results['needs_review']
         }
     
-    def grade_all_weeks(self, season=2025):
+    def grade_all_weeks(self, season=2025, force_regrade=True):
         """
         Grade all weeks for a season
         
         Args:
             season: NFL season year
+            force_regrade: If True, re-grade already graded picks (default True for this method)
             
         Returns:
             dict with grading results and statistics
@@ -123,11 +125,11 @@ class GradingService:
             }
         
         # Grade FTD picks
-        ftd_results = self._grade_ftd_picks(all_games, first_td_map)
+        ftd_results = self._grade_ftd_picks(all_games, first_td_map, force_regrade=force_regrade)
         
         # Grade ATTS picks
         all_td_map = get_all_td_scorers(pbp_df, target_game_ids=game_ids, roster_df=roster_df)
-        atts_results = self._grade_atts_picks(all_games, all_td_map) if all_td_map else {
+        atts_results = self._grade_atts_picks(all_games, all_td_map, force_regrade=force_regrade) if all_td_map else {
             'graded': 0, 'won': 0, 'lost': 0, 'needs_review': 0
         }
         
@@ -150,7 +152,7 @@ class GradingService:
             'total_needs_review': ftd_results['needs_review'] + atts_results['needs_review']
         }
     
-    def _grade_ftd_picks(self, games, first_td_map):
+    def _grade_ftd_picks(self, games, first_td_map, force_regrade=False):
         """Grade First TD picks for given games"""
         games_graded = 0
         picks_graded = 0
@@ -178,8 +180,8 @@ class GradingService:
             picks = Pick.query.filter_by(game_id=game.id, pick_type='FTD').all()
             
             for pick in picks:
-                if pick.graded_at:
-                    continue  # Skip already graded
+                if pick.graded_at and not force_regrade:
+                    continue  # Skip already graded unless force_regrade is True
                 
                 result = self._grade_single_pick(pick, [actual_player], actual_player)
                 picks_graded += result['graded']
@@ -197,7 +199,7 @@ class GradingService:
             'needs_review': needs_review
         }
     
-    def _grade_atts_picks(self, games, all_td_map):
+    def _grade_atts_picks(self, games, all_td_map, force_regrade=False):
         """Grade Anytime TD Scorer picks for given games"""
         picks_graded = 0
         picks_won = 0
@@ -220,7 +222,7 @@ class GradingService:
             atts_picks = Pick.query.filter_by(game_id=game.id, pick_type='ATTS').all()
             
             for pick in atts_picks:
-                if pick.graded_at:
+                if pick.graded_at and not force_regrade:
                     continue
                 
                 result = self._grade_single_pick(pick, scorer_names)

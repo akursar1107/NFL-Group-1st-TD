@@ -227,6 +227,16 @@
   background: #0e8a37;
 }
 
+.action-btn.warning {
+  background: #ff9800;
+  color: white;
+  border-color: #ff9800;
+}
+
+.action-btn.warning:hover:not(:disabled) {
+  background: #e68900;
+}
+
 .import-message {
   margin-top: 1rem;
   padding: 0.75rem;

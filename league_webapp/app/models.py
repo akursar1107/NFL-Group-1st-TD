@@ -109,14 +109,16 @@ class Pick(db.Model):
         return f'<Pick {self.user.username}: {self.player_name} ({self.pick_type}) - {self.result}>'
     
     def calculate_payout(self):
-        """Calculate payout based on American odds"""
+        """Calculate net payout based on American odds (includes stake for wins)"""
         if self.result == 'W':
             if self.odds > 0:
-                # Positive odds: profit = stake * (odds / 100)
-                return self.stake * (self.odds / 100)
+                # Positive odds: profit = stake * (odds / 100), net payout = stake + profit
+                profit = self.stake * (self.odds / 100)
+                return self.stake + profit
             else:
-                # Negative odds: profit = stake / (abs(odds) / 100)
-                return self.stake / (abs(self.odds) / 100)
+                # Negative odds: profit = stake / (abs(odds) / 100), net payout = stake + profit
+                profit = self.stake / (abs(self.odds) / 100)
+                return self.stake + profit
         elif self.result == 'L':
             return -self.stake
         else:

@@ -11,6 +11,8 @@ const AdminDashboard: React.FC = () => {
   const [season, setSeason] = useState<number>(2025);
   const [importLoading, setImportLoading] = useState<boolean>(false);
   const [importMessage, setImportMessage] = useState<string>('');
+  const [regradeLoading, setRegradeLoading] = useState<boolean>(false);
+  const [regradeMessage, setRegradeMessage] = useState<string>('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -48,6 +50,34 @@ const AdminDashboard: React.FC = () => {
   const handleGradeWeek = () => {
     if (stats) {
       navigate(`/weekly-games?week=${stats.current_week}&season=${season}`);
+    }
+  };
+
+  const handleRegradeAll = async () => {
+    if (!window.confirm('Re-grade ALL picks for the entire season? This will recalculate all payouts.')) {
+      return;
+    }
+
+    setRegradeLoading(true);
+    setRegradeMessage('');
+    try {
+      const response = await fetch(`http://localhost:5000/api/regrade-all?season=${season}`, {
+        method: 'POST',
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Re-grading failed');
+      }
+      
+      setRegradeMessage(`✅ Re-graded ${data.total_graded} picks (${data.total_won} wins, ${data.total_lost} losses)`);
+      // Reload stats after re-grading
+      await loadDashboardStats();
+    } catch (err) {
+      setRegradeMessage(err instanceof Error ? err.message : 'Re-grading failed');
+    } finally {
+      setRegradeLoading(false);
     }
   };
 
@@ -158,10 +188,22 @@ const AdminDashboard: React.FC = () => {
           <button className="action-btn" onClick={() => navigate('/new-pick')}>
             Add New Pick
           </button>
+          <button 
+            className="action-btn warning" 
+            onClick={handleRegradeAll}
+            disabled={regradeLoading}
+          >
+            {regradeLoading ? 'Re-grading...' : 'Re-grade All Picks'}
+          </button>
         </div>
         {importMessage && (
           <p className={`import-message ${importMessage.includes('failed') ? 'error' : 'success'}`}>
             {importMessage}
+          </p>
+        )}
+        {regradeMessage && (
+          <p className={`import-message ${regradeMessage.includes('failed') || regradeMessage.includes('Error') ? 'error' : 'success'}`}>
+            {regradeMessage}
           </p>
         )}
       </div>

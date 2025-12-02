@@ -308,3 +308,41 @@ def import_picks():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/regrade-all', methods=['POST'])
+def regrade_all():
+    """Re-grade all picks for the entire season"""
+    season = request.args.get('season', 2025, type=int)
+    
+    try:
+        from ...services.grading_service import GradingService
+        
+        grading_service = GradingService()
+        result = grading_service.grade_all_weeks(season)
+        
+        if not result['success']:
+            return jsonify({'error': result['error']}), 400
+        
+        return jsonify({
+            'message': f"Successfully re-graded all picks for {season} season",
+            'season': result['season'],
+            'weeks_graded': result['weeks_graded'],
+            'games_graded': result['games_graded'],
+            'total_graded': result['total_graded'],
+            'total_won': result['total_won'],
+            'total_lost': result['total_lost'],
+            'total_needs_review': result['total_needs_review'],
+            'ftd': {
+                'graded': result['ftd']['graded'],
+                'won': result['ftd']['won'],
+                'lost': result['ftd']['lost']
+            },
+            'atts': {
+                'graded': result['atts']['graded'],
+                'won': result['atts']['won'],
+                'lost': result['atts']['lost']
+            }
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
