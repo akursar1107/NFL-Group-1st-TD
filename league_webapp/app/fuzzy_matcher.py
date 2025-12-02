@@ -45,6 +45,17 @@ class NameMatcher:
         'dj': 'd.j.',
         'jj': 'j.j.',
         'tj': 't.j.',
+        # Popular NFL player nicknames
+        'jamo': 'jameson',
+        'cmc': 'christian mccaffrey',
+        'dk': 'decaf',
+        'dhop': 'deandre hopkins',
+        'scary terry': 'terry mclaurin',
+        'hollywood': 'marquise brown',
+        'hollywood': 'marqise brown',
+        'flash': 'josh gordon',
+        'megatron': 'calvin johnson',
+        'beast mode': 'marshawn lynch',
     }
     
     # Suffixes to normalize
@@ -173,22 +184,42 @@ class NameMatcher:
         Useful for matching "John Smith" with "Smith, John" or partial matches.
         Improved to handle partial name matches better (e.g., "Allen" vs "Josh Allen").
         """
-        tokens1 = set(self.tokenize_name(name1))
-        tokens2 = set(self.tokenize_name(name2))
+        tokens1 = self.tokenize_name(name1)  # Keep as list, not set
+        tokens2 = self.tokenize_name(name2)  # Keep as list, not set
         
         if not tokens1 or not tokens2:
             return 0.0
         
+        # Special case: Single name pick vs full name (e.g., "Lamb" vs "CeeDee Lamb")
+        # Check if the single name is the last token of the full name
+        if len(tokens1) == 1 and len(tokens2) > 1:
+            # Single pick name matches last token of full name
+            if tokens1[0] == tokens2[-1]:
+                return 0.95  # Very high confidence for last name match
+            # Or matches first token
+            if tokens1[0] == tokens2[0]:
+                return 0.75  # Medium-high for first name only
+        elif len(tokens2) == 1 and len(tokens1) > 1:
+            # Reverse case
+            if tokens2[0] == tokens1[-1]:
+                return 0.95  # Very high confidence for last name match
+            if tokens2[0] == tokens1[0]:
+                return 0.75  # Medium-high for first name only
+        
+        # Convert to sets for intersection
+        tokens1_set = set(tokens1)
+        tokens2_set = set(tokens2)
+        
         # Calculate intersection
-        intersection = tokens1.intersection(tokens2)
+        intersection = tokens1_set.intersection(tokens2_set)
         
         if not intersection:
             return 0.0
         
         # Use the smaller set size for denominator to reward partial matches
         # E.g., "Allen" vs "Josh Allen" should get 1.0, not 0.5
-        min_tokens = min(len(tokens1), len(tokens2))
-        max_tokens = max(len(tokens1), len(tokens2))
+        min_tokens = min(len(tokens1_set), len(tokens2_set))
+        max_tokens = max(len(tokens1_set), len(tokens2_set))
         
         # Base score: intersection over minimum
         base_score = len(intersection) / min_tokens if min_tokens > 0 else 0.0
@@ -200,8 +231,8 @@ class NameMatcher:
         jaccard = (base_score * 0.80) + (size_penalty * 0.20)
         
         # Bonus for matching last name (typically most important)
-        # Assume last token is last name
-        last_name_match = (list(tokens1)[-1] == list(tokens2)[-1]) if tokens1 and tokens2 else False
+        # Check if last tokens match
+        last_name_match = (tokens1[-1] == tokens2[-1]) if tokens1 and tokens2 else False
         
         if last_name_match:
             jaccard = min(1.0, jaccard * 1.15)  # 15% bonus for last name match
@@ -235,6 +266,16 @@ class NameMatcher:
             for scorer_var in scorer_variations:
                 if pick_var == scorer_var:
                     return 0.90, f"Nickname match: '{pick_name}' → '{scorer_name}'"
+                # Also check if nickname variation creates a token match
+                pick_var_tokens = self.tokenize_name(pick_var)
+                scorer_var_tokens = self.tokenize_name(scorer_var)
+                # Check for single name matching last name in full name
+                if len(pick_var_tokens) == 1 and len(scorer_var_tokens) > 1:
+                    if pick_var_tokens[0] == scorer_var_tokens[-1] or pick_var_tokens[0] == scorer_var_tokens[0]:
+                        return 0.90, f"Nickname expansion match: '{pick_name}' → '{scorer_name}'"
+                elif len(scorer_var_tokens) == 1 and len(pick_var_tokens) > 1:
+                    if scorer_var_tokens[0] == pick_var_tokens[-1] or scorer_var_tokens[0] == pick_var_tokens[0]:
+                        return 0.90, f"Nickname expansion match: '{pick_name}' → '{scorer_name}'"
         
         # Calculate token similarity (improved for partial matches)
         token_sim = self.token_similarity(pick_name, scorer_name)
