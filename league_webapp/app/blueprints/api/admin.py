@@ -346,3 +346,113 @@ def regrade_all():
         }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/pending-reviews', methods=['GET'])
+def get_pending_reviews():
+    """Get all match decisions that need manual review"""
+    season = request.args.get('season', 2025, type=int)
+    
+    try:
+        from ...models import MatchDecision
+        from datetime import datetime
+        
+        # Query match decisions that need review
+        pending_reviews = db.session.query(MatchDecision).join(
+            PickModel, MatchDecision.pick_id == PickModel.id
+        ).join(
+            Game, PickModel.game_id == Game.id
+        ).join(
+            User, PickModel.user_id == User.id
+        ).filter(
+            MatchDecision.needs_review == True,
+            MatchDecision.reviewed_at == None,
+            Game.season == season
+        ).all()
+        
+        reviews_data = []
+        for decision in pending_reviews:
+            pick = decision.pick
+            game = pick.game
+            user = pick.user
+            
+            reviews_data.append({
+                'id': decision.id,
+                'pick_id': pick.id,
+                'user_name': user.display_name or user.username,
+                'game_info': f"{game.away_team} @ {game.home_team}",
+                'week': game.week,
+                'pick_type': pick.pick_type,
+                'pick_name': decision.pick_name,
+                'scorer_name': decision.scorer_name,
+                'confidence_score': round(decision.confidence_score, 2),
+                'match_reason': decision.match_reason,
+                'odds': pick.odds,
+                'stake': float(pick.stake),
+                'created_at': decision.created_at.isoformat() if decision.created_at else None
+            })
+        
+        return jsonify({
+            'pending_reviews': reviews_data,
+            'total_pending': len(reviews_data)
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/review-match/<int:decision_id>', methods=['POST'])
+def review_match(decision_id):
+    """Accept or reject a match decision"""
+    from ...models import MatchDecision
+    from datetime import datetime
+    
+    data = request.get_json()
+    decision = data.get('decision')  # 'accept' or 'reject'
+    
+    if decision not in ['accept', 'reject']:
+        return jsonify({'error': "Decision must be 'accept' or 'reject'"}), 400
+    
+    try:
+        # Get the match decision
+        match_decision = MatchDecision.query.get(decision_id)
+        if not match_decision:
+            return jsonify({'error': 'Match decision not found'}), 404
+        
+        if match_decision.reviewed_at:
+            return jsonify({'error': 'This match has already been reviewed'}), 400
+        
+        # Get the associated pick
+        pick = PickModel.query.get(match_decision.pick_id)
+        if not pick:
+            return jsonify({'error': 'Associated pick not found'}), 404
+        
+        # Update match decision
+        match_decision.reviewed_at = datetime.utcnow()
+        match_decision.review_decision = decision
+        # Note: reviewed_by would need user authentication to set properly
+        
+        # Update pick based on decision
+        if decision == 'accept':
+            # Match accepted - mark as win
+            pick.result = 'W'
+            pick.payout = pick.calculate_payout()
+            pick.graded_at = datetime.utcnow()
+        else:
+            # Match rejected - mark as loss
+            pick.result = 'L'
+            pick.payout = -pick.stake
+            pick.graded_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': f"Match decision {decision}ed successfully",
+            'pick_id': pick.id,
+            'result': pick.result,
+            'payout': float(pick.payout)
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500

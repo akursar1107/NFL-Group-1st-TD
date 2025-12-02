@@ -274,6 +274,11 @@ const AdminDashboard: React.FC = () => {
             <div className="nav-title">Import Picks</div>
             <div className="nav-description">Bulk import from CSV file</div>
           </div>
+          <div className="nav-card" onClick={() => navigate('/review-picks')}>
+            <div className="nav-icon">🔍</div>
+            <div className="nav-title">Review Picks</div>
+            <div className="nav-description">Manual review of fuzzy matches</div>
+          </div>
         </div>
       </div>
     </div>
