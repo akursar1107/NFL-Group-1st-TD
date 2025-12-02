@@ -26,7 +26,7 @@ def get_player_position(player_name: str, game: Game) -> str:
         # Load roster data for the season
         _, _, roster_df = load_data_with_cache_web(game.season, use_cache=True)
         
-        # Filter to only players from the game's teams
+        # Filter to only players from the game's teams (don't filter by week - roster 'week' represents transactions)
         game_rosters = roster_df.filter(
             (roster_df['team'] == game.home_team) | 
             (roster_df['team'] == game.away_team)
@@ -120,7 +120,7 @@ def get_picks():
             # Attempt enrichment only if requested and we have roster data
             if include_full_names and roster_df is not None and matcher is not None:
                 try:
-                    # Filter roster to game teams
+                    # Filter roster to game teams (don't filter by week - roster 'week' represents transactions)
                     game_roster = roster_df.filter(
                         (roster_df['team'] == pick.game.home_team) |
                         (roster_df['team'] == pick.game.away_team)

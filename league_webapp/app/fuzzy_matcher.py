@@ -58,6 +58,16 @@ class NameMatcher:
         'beast mode': 'marshawn lynch',
         'arsb': 'amon-ra st brown',
         'sun god': 'amon-ra st brown',
+        # Additional mappings for CSV import
+        'ladd': 'ladd mcconkey',
+        'o.gadsden': 'oronde gadsden ii',
+        'og': 'oronde gadsden ii',
+        'gadsden': 'oronde gadsden ii',
+        'batemen': 'bateman',
+        'tj hock': 't.j. hockenson',
+        'hock': 'hockenson',
+        'mims': 'marvin mims jr',
+        'pickens': 'george pickens',
     }
     
     # Suffixes to normalize

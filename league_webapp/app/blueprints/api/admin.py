@@ -59,6 +59,42 @@ def grade_week():
         return jsonify({'error': str(e)}), 500
 
 
+@api_bp.route('/grade-by-type', methods=['POST'])
+def grade_by_type():
+    """Grade all pending picks of a specific type (FTD or ATTS) for a given season"""
+    data = request.get_json()
+    
+    pick_type = data.get('pick_type')
+    season = data.get('season', 2025)
+    
+    # Validate pick_type
+    if pick_type not in ['FTD', 'ATTS']:
+        return jsonify({'error': 'pick_type must be "FTD" or "ATTS"'}), 400
+    
+    try:
+        from ...services.grading_service import GradingService
+        
+        grading_service = GradingService()
+        result = grading_service.grade_by_pick_type(pick_type, season)
+        
+        if not result['success']:
+            return jsonify({'error': result.get('error', 'Failed to grade picks')}), 400
+        
+        return jsonify({
+            'message': result.get('message', f'Successfully graded {result["graded"]} {pick_type} pick(s)'),
+            'season': result['season'],
+            'pick_type': result['pick_type'],
+            'weeks_graded': len(result.get('weeks_graded', [])),
+            'total_graded': result['graded'],
+            'total_won': result['won'],
+            'total_lost': result['lost'],
+            'total_needs_review': result.get('needs_review', 0)
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @api_bp.route('/admin/dashboard-stats', methods=['GET'])
 def get_dashboard_stats():
     season = request.args.get('season', 2025, type=int)

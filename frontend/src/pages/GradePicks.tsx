@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchPicks, Pick } from '../api/picks';
-import { gradeWeek } from '../api/grading';
+import { gradeWeek, gradeByType } from '../api/grading';
 import '../styles/GradePicks.css';
 
 const GradePicks: React.FC = () => {
@@ -125,6 +125,68 @@ const GradePicks: React.FC = () => {
     }
   };
 
+  const handleGradeAllFTD = async () => {
+    const ftdPicks = pendingPicks.filter(p => p.pick_type === 'FTD');
+    if (ftdPicks.length === 0) {
+      setMessage({ text: 'No pending FTD picks to grade', type: 'error' });
+      return;
+    }
+
+    const confirmMessage = `Are you sure you want to grade ALL ${ftdPicks.length} pending FTD pick(s) for season ${season}?`;
+    if (!window.confirm(confirmMessage)) return;
+
+    setGrading(true);
+    setMessage(null);
+
+    try {
+      const result = await gradeByType('FTD', season);
+      setMessage({ 
+        text: result.message, 
+        type: 'success' 
+      });
+      setSelectedPicks(new Set());
+      await loadPendingPicks();
+    } catch (err) {
+      setMessage({ 
+        text: err instanceof Error ? err.message : 'Failed to grade FTD picks', 
+        type: 'error' 
+      });
+    } finally {
+      setGrading(false);
+    }
+  };
+
+  const handleGradeAllATTS = async () => {
+    const attsPicks = pendingPicks.filter(p => p.pick_type === 'ATTS');
+    if (attsPicks.length === 0) {
+      setMessage({ text: 'No pending ATTS picks to grade', type: 'error' });
+      return;
+    }
+
+    const confirmMessage = `Are you sure you want to grade ALL ${attsPicks.length} pending ATTS pick(s) for season ${season}?`;
+    if (!window.confirm(confirmMessage)) return;
+
+    setGrading(true);
+    setMessage(null);
+
+    try {
+      const result = await gradeByType('ATTS', season);
+      setMessage({ 
+        text: result.message, 
+        type: 'success' 
+      });
+      setSelectedPicks(new Set());
+      await loadPendingPicks();
+    } catch (err) {
+      setMessage({ 
+        text: err instanceof Error ? err.message : 'Failed to grade ATTS picks', 
+        type: 'error' 
+      });
+    } finally {
+      setGrading(false);
+    }
+  };
+
   const getAvailableWeeks = () => {
     const weeks = Array.from(new Set(pendingPicks.map(p => p.week))).sort((a, b) => a - b);
     return weeks;
@@ -174,6 +236,20 @@ const GradePicks: React.FC = () => {
             className="btn-grade-all"
           >
             {grading ? 'Grading...' : `Grade All (${pendingPicks.length})`}
+          </button>
+          <button
+            onClick={handleGradeAllFTD}
+            disabled={grading || pendingPicks.filter(p => p.pick_type === 'FTD').length === 0}
+            className="btn-grade-ftd"
+          >
+            {grading ? 'Grading...' : `Grade All FTD (${pendingPicks.filter(p => p.pick_type === 'FTD').length})`}
+          </button>
+          <button
+            onClick={handleGradeAllATTS}
+            disabled={grading || pendingPicks.filter(p => p.pick_type === 'ATTS').length === 0}
+            className="btn-grade-atts"
+          >
+            {grading ? 'Grading...' : `Grade All ATTS (${pendingPicks.filter(p => p.pick_type === 'ATTS').length})`}
           </button>
           <button
             onClick={handleGradeSelected}

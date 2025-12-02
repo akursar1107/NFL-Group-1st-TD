@@ -76,6 +76,8 @@
 }
 
 .btn-grade-all,
+.btn-grade-ftd,
+.btn-grade-atts,
 .btn-grade-selected {
   padding: 10px 20px;
   border: none;
@@ -95,16 +97,36 @@
   background-color: #c82333;
 }
 
-.btn-grade-selected {
+.btn-grade-ftd {
   background-color: #007bff;
   color: white;
 }
 
-.btn-grade-selected:hover:not(:disabled) {
+.btn-grade-ftd:hover:not(:disabled) {
   background-color: #0056b3;
 }
 
+.btn-grade-atts {
+  background-color: #e91e63;
+  color: white;
+}
+
+.btn-grade-atts:hover:not(:disabled) {
+  background-color: #c2185b;
+}
+
+.btn-grade-selected {
+  background-color: #28a745;
+  color: white;
+}
+
+.btn-grade-selected:hover:not(:disabled) {
+  background-color: #218838;
+}
+
 .btn-grade-all:disabled,
+.btn-grade-ftd:disabled,
+.btn-grade-atts:disabled,
 .btn-grade-selected:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -292,6 +314,8 @@
   }
 
   .btn-grade-all,
+  .btn-grade-ftd,
+  .btn-grade-atts,
   .btn-grade-selected {
     width: 100%;
   }

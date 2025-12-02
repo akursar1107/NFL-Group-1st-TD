@@ -152,6 +152,90 @@ class GradingService:
             'total_needs_review': ftd_results['needs_review'] + atts_results['needs_review']
         }
     
+    def grade_by_pick_type(self, pick_type, season=2025, use_cache=True, force_regrade=False):
+        """
+        Grade all pending picks of a specific type for a season
+        
+        Args:
+            pick_type: 'FTD' or 'ATTS'
+            season: NFL season year
+            use_cache: Whether to use cached data
+            force_regrade: If True, re-grade already graded picks
+            
+        Returns:
+            dict with grading results and statistics
+        """
+        if pick_type not in ['FTD', 'ATTS']:
+            return {
+                'success': False,
+                'error': 'pick_type must be "FTD" or "ATTS"'
+            }
+        
+        # Load NFL data
+        schedule_df, pbp_df, roster_df = load_data_with_cache_web(season, use_cache=use_cache)
+        
+        # Get all games that have pending picks of this type
+        games_with_pending = db.session.query(Game).join(Pick).filter(
+            Game.season == season,
+            Pick.pick_type == pick_type,
+            Pick.result == 'Pending'
+        ).distinct().all()
+        
+        if not games_with_pending:
+            return {
+                'success': True,
+                'message': f'No pending {pick_type} picks to grade',
+                'pick_type': pick_type,
+                'season': season,
+                'graded': 0,
+                'won': 0,
+                'lost': 0,
+                'needs_review': 0
+            }
+        
+        game_ids = [g.game_id for g in games_with_pending]
+        
+        # Grade based on pick type
+        if pick_type == 'FTD':
+            # Get first TD scorers
+            first_td_map = get_first_td_scorers(pbp_df, target_game_ids=game_ids, roster_df=roster_df)
+            
+            if not first_td_map:
+                return {
+                    'success': False,
+                    'error': 'No first TD data found. Games may not have been played yet.'
+                }
+            
+            results = self._grade_ftd_picks(games_with_pending, first_td_map, force_regrade=force_regrade)
+        else:  # ATTS
+            # Get all TD scorers
+            all_td_map = get_all_td_scorers(pbp_df, target_game_ids=game_ids, roster_df=roster_df)
+            
+            if not all_td_map:
+                return {
+                    'success': False,
+                    'error': 'No TD scorer data found. Games may not have been played yet.'
+                }
+            
+            results = self._grade_atts_picks(games_with_pending, all_td_map, force_regrade=force_regrade)
+        
+        # Commit all changes
+        db.session.commit()
+        
+        # Get unique weeks graded
+        weeks_graded = set(g.week for g in games_with_pending)
+        
+        return {
+            'success': True,
+            'pick_type': pick_type,
+            'season': season,
+            'weeks_graded': sorted(weeks_graded),
+            'graded': results['graded'],
+            'won': results['won'],
+            'lost': results['lost'],
+            'needs_review': results.get('needs_review', 0)
+        }
+    
     def _grade_ftd_picks(self, games, first_td_map, force_regrade=False):
         """Grade First TD picks for given games"""
         games_graded = 0
